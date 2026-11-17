@@ -1,14 +1,22 @@
 // =============================================================
 // フック台：景品の板（動く物体）＋板に固定された「？」形フック
-// フック形状（ローカル、yaw=0 で開口部が手前 +z を向く）
-//   柱：板上面から高さ postHeight まで
-//   半円：柱の上から手前へ半径 arcRadius で曲がり、下向きになる
-//   先端：下へ tailLength 伸びる（板との隙間＝柱の高さ−tailLength）
+// フック形状：「？」形のねじ込みフック写真の中心線をなぞった点列（比率のみ使用）
+//   根元から上へ伸び、S字に右へふくらんでから大きな弧で上を回り、
+//   先端は手前斜め下を向いて終わる。先端と首の間が「開き」
+//   yaw=0 で開口部（先端側）が手前 +z を向く
+//   大きさは height（板上面〜フック頂点の外側）で決める。実機の寸法は未確定（仮の値）
 // リングがフックに掛かった状態で上昇すると板ごと持ち上がる → 獲得
 // =============================================================
 import { GROUP, groups, quatAxisAngle, rotateVec } from '../physics/world.js';
 
-const ARC_SEGMENTS = 8;
+// 写真の中心線（根元=原点、横=手前方向が＋、縦=上が＋）。単位は「フック全高=1」
+// 元画像の座標（根元 x=445,y=875、外側てっぺん y=55、全高820px）から換算
+const QUESTION_SHAPE = [
+  [445, 875], [445, 800], [455, 730], [490, 670], [545, 625], [610, 585],
+  [660, 545], [695, 490], [715, 420], [718, 350], [705, 280], [675, 215],
+  [625, 155], [560, 115], [490, 95], [420, 95], [350, 110], [285, 140],
+  [230, 185], [190, 240], [165, 300], [145, 360], [130, 410]
+].map(([x, y]) => ({ z: -(x - 445) / 820, y: (875 - y) / 820 }));
 
 export function createHookMachine(RAPIER, world, preset) {
   const b = preset.board;
@@ -34,13 +42,11 @@ export function createHookMachine(RAPIER, world, preset) {
   );
 
   // ---- フックの中心線（ローカル・yaw前）----
-  const H = h.postHeight, R = h.arcRadius, T = h.tailLength;
-  const line = [{ x: 0, y: 0, z: 0 }, { x: 0, y: H, z: 0 }];
-  for (let i = 1; i <= ARC_SEGMENTS; i++) {
-    const t = Math.PI * i / ARC_SEGMENTS;
-    line.push({ x: 0, y: H + R * Math.sin(t), z: R - R * Math.cos(t) });
-  }
-  line.push({ x: 0, y: H - T, z: 2 * R });
+  const rodR = h.thickness / 2;
+  // 写真の全高は「外側のてっぺん」まで。中心線は線の太さの半分だけ低い
+  const scale = h.height - rodR;
+  const topLine = Math.max(...QUESTION_SHAPE.map(p => p.y));
+  const line = QUESTION_SHAPE.map(p => ({ x: 0, y: p.y / topLine * scale, z: p.z / topLine * scale }));
 
   // 板ローカルへ：yaw回転＋取り付け位置
   const qYaw = quatAxisAngle(0, 1, 0, (h.yawDeg || 0) * Math.PI / 180);
@@ -51,7 +57,6 @@ export function createHookMachine(RAPIER, world, preset) {
   };
   const pts = line.map(toBoard);
 
-  const rodR = h.thickness / 2;
   const parts = [
     { type: 'box', size: [b.width, b.height, b.depth], pos: [0, 0, 0], color: colorOf(b.material) }
   ];
@@ -105,12 +110,13 @@ export function createHookMachine(RAPIER, world, preset) {
   samples.push(pts[pts.length - 1]);
 
   const initialY = boardY;
-  const hookTopLocalY = base.y + H + R + rodR;
+  const hookTop = h.height;
+  const hookTopLocalY = base.y + hookTop;
 
   return {
     board,
     rodR,
-    hookTop: H + R + rodR,                  // 板上面からフック頂点まで
+    hookTop,                                // 板上面からフック頂点まで
     boardTop: b.height,                     // 台からの板上面の高さ
     hookWorldBase() {                       // カメラ用：フック根元のワールド座標
       return toWorld(board, { x: base.x, y: hookTopLocalY / 2, z: base.z });

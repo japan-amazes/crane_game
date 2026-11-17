@@ -43,9 +43,7 @@
       },
       "hook": {
         "type": "standard",
-        "postHeight": 3.5,
-        "arcRadius": 1.0,
-        "tailLength": 1.2,
+        "height": 4.5,
         "thickness": 0.44,
         "tipBallRadius": 0,
         "yawDeg": 0,

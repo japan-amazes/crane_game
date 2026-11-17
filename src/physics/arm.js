@@ -2,6 +2,7 @@
 // アーム（吊り元）の動き
 // ①を押している間 横（+x）へ、離すと止まる
 // ②を押している間 奥（-z）へ、離すと止まって下降 → 待機 → 上昇
+// 失敗後に続ける場合：手前へ戻る → 横へ戻る → 初期位置で①待ち（揺れはそのまま残る）
 // 位置で動かすキネマティック物体。加速・減速があるので鎖とリングが揺れる
 // =============================================================
 
@@ -16,7 +17,9 @@ export const PHASE = {
   HOLD: 'hold',            // 下で待機
   ASCEND: 'ascend',        // 上昇
   JUDGE: 'judge',          // 上で判定待ち
-  DONE: 'done'
+  DONE: 'done',
+  RETURN_Z: 'returnZ',     // 初期位置へ戻る（まず手前へ）
+  RETURN_X: 'returnX'      // 初期位置へ戻る（次に横へ）
 };
 
 const UPDOWN_ACCEL = 25; // 上下動の加減速（cm/s²）
@@ -80,6 +83,19 @@ export class Arm {
     return Math.abs(d) <= step ? target : v + Math.sign(d) * step;
   }
 
+  // 初期位置へ戻り始める（失敗後に続けるとき）
+  startReturn() {
+    this.inputX = this.inputZ = false;
+    this.zQueued = false;
+    this.setPhase(PHASE.RETURN_Z);
+  }
+
+  // 目標までの残り距離から、減速が間に合う速さ（向き付き）を出す
+  stopSpeed(speed, remaining) {
+    const v = Math.min(speed, Math.sqrt(2 * this.p.decel * Math.abs(remaining)));
+    return Math.sign(remaining) * v;
+  }
+
   // 上下動の速さ：動き出しと止まり際をなめらかにする（急停止で揺れすぎないように）
   smooth(speed, remaining, elapsed) {
     const a = UPDOWN_ACCEL;
@@ -132,6 +148,22 @@ export class Arm {
         break;
       case PHASE.JUDGE:
         if (this.timer >= p.judgeTime) this.setPhase(PHASE.DONE);
+        break;
+      case PHASE.RETURN_Z:
+        // 手前（zFront）へ。止まり際は減速して目標でぴったり止まる
+        this.vel.z = this.approach(this.vel.z, this.stopSpeed(p.speedZ, f.zFront - this.pos.z), dt);
+        if (Math.abs(f.zFront - this.pos.z) < 0.01 && Math.abs(this.vel.z) < 0.05) {
+          this.pos.z = f.zFront; this.vel.z = 0;
+          this.setPhase(PHASE.RETURN_X);
+        }
+        break;
+      case PHASE.RETURN_X:
+        // 横（xMin）へ
+        this.vel.x = this.approach(this.vel.x, this.stopSpeed(p.speedX, f.xMin - this.pos.x), dt);
+        if (Math.abs(f.xMin - this.pos.x) < 0.01 && Math.abs(this.vel.x) < 0.05) {
+          this.pos.x = f.xMin; this.vel.x = 0;
+          this.setPhase(PHASE.READY);
+        }
         break;
       default:
         break;

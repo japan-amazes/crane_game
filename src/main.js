@@ -50,7 +50,15 @@ export function buildRound(RAPIER, preset) {
         round.maxLift = Math.max(round.maxLift, machine.lifted());
       }
     },
-    swingNow() { return measureSwing(round); }
+    swingNow() { return measureSwing(round); },
+    // 失敗後に続ける：作り直さず、記録だけ消してアームを初期位置へ戻す（揺れ・板の位置はそのまま）
+    continueRound() {
+      round.swing = {};
+      round.hookRecord = null;
+      round.result = null;
+      round.maxLift = 0;
+      arm.startReturn();
+    }
   };
 
   arm.onPhase = (next) => {
@@ -150,6 +158,20 @@ async function boot() {
     applyCamera();
   }
 
+  // 「もう一度」：失敗なら続けて（初期位置へ戻る）、獲得なら新しい景品で作り直す
+  function again() {
+    if (round && round.result === 'lose') {
+      showResult(null);
+      zoomAt = null;
+      zoomed = false;
+      round.continueRound();
+      applyCamera(0.5);
+      setStatus();
+    } else {
+      restart();
+    }
+  }
+
   function onPhase(next) {
     setStatus();
     if (next === PHASE.DESCEND) zoomAt = performance.now() + ZOOM_DELAY * 1000;
@@ -169,6 +191,8 @@ async function boot() {
       hold: '下で待機中…',
       ascend: '引き上げ中…',
       judge: '判定中…',
+      returnZ: '初期位置に戻っています…',
+      returnX: '初期位置に戻っています…',
       done: ''
     }[ph];
     status.textContent = msg;
@@ -212,7 +236,7 @@ async function boot() {
       <div class="res-row">② 押した瞬間の揺れ：${sw(r.swing.z)}</div>
       <button id="btnAgain" class="big">もう一度</button>`;
     resultEl.hidden = false;
-    document.getElementById('btnAgain').addEventListener('click', restart);
+    document.getElementById('btnAgain').addEventListener('click', again);
   }
 
   // ---- ループ（物理は固定ステップ）----

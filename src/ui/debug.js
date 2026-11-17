@@ -17,6 +17,7 @@ const SCHEMA = [
   { path: 'arm.dropLimit', label: '下降制限（止まる高さ・板の上面から）', min: 5, max: 75, step: 0.1, unit: 'cm' },
   { path: 'arm.holdTime', label: '下での待ち時間', min: 0, max: 3, step: 0.1, unit: '秒' },
   { path: 'arm.ascendSpeed', label: '引き上げの速さ', min: 2, max: 15, step: 0.5, unit: 'cm/s' },
+  { path: 'arm.judgeDelay', label: '判定までの時間（上昇開始から）', min: 0.5, max: 8, step: 0.1, unit: '秒' },
   { group: 'チェーン' },
   { path: 'chain.length', label: 'チェーンの長さ', min: 5, max: 70, step: 0.1, unit: 'cm' },
   { path: 'chain.pitch', label: 'コマの長さ（ピッチ）', min: 0.4, max: 1.5, step: 0.05, unit: 'cm' },

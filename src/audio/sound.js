@@ -3,6 +3,7 @@
 // 音声ファイルは使わず、ブラウザの音の機能（Web Audio）でファミコン風の音を作って鳴らす
 // BGM は楽譜データ（assets/music/bgm.json）を読んで演奏する。形式は assets/music/README.md
 // スマホは画面を一度タップするまで音を出せないため、最初の操作で鳴り始める
+// （スマホでは「押した瞬間」では許可が下りず、「指を離したとき／タップ」で下りる。鳴るまで操作のたびにやり直す）
 // =============================================================
 
 const STORE_KEY = 'crane.sound.v1';
@@ -39,7 +40,7 @@ export function createSound() {
   let ctx = null, master = null, bgmGain = null, sfxGain = null;
   const waves = {};
   let noiseBuf = null;
-  let song = null;          // { stepSec, totalSteps, tracks: [{ wave, volume, events }] }
+  let song = null;          // { stepSec, totalSteps, swing, swingUnit, tracks: [{ wave, volume, events }] }
   let playing = false;
   let timer = null;
   let nextStep = 0, nextTime = 0;
@@ -110,20 +111,23 @@ export function createSound() {
       totalSteps = Math.max(totalSteps, total);
       return { wave: tr.wave || 'pulse25', volume: tr.volume ?? 0.3, gate: tr.gate ?? 0.85, events };
     });
-    song = { stepSec, totalSteps, tracks };
+    // swing：跳ね具合（0＝跳ねない。0.33で3連符のシャッフル）。swingUnit マスごとの裏拍を遅らせる
+    song = { stepSec, totalSteps, tracks, swing: json.swing || 0, swingUnit: json.swingUnit || 2 };
   }
 
   function schedule() {
     const ahead = ctx.currentTime + 0.25;
     while (nextTime < ahead) {
+      const off = Math.floor(nextStep / song.swingUnit) % 2 === 1 ? song.swing * song.swingUnit * song.stepSec : 0;
+      const at = nextTime + off;
       for (const tr of song.tracks) {
         for (const ev of tr.events) {
           if (ev.step !== nextStep) continue;
           const dur = ev.len * song.stepSec;
-          if (tr.wave === 'noise') drum(ev.note, nextTime, tr.volume, bgmGain);
+          if (tr.wave === 'noise') drum(ev.note, at, tr.volume, bgmGain);
           else {
             const f = noteFreq(ev.note);
-            if (f) tone(tr.wave, f, nextTime, dur * tr.gate, tr.volume, bgmGain);
+            if (f) tone(tr.wave, f, at, dur * tr.gate, tr.volume, bgmGain);
           }
         }
       }
@@ -133,7 +137,7 @@ export function createSound() {
   }
 
   function startBgm() {
-    if (playing || !song || !song.totalSteps || !settings.bgm || !ensure()) return;
+    if (playing || !song || !song.totalSteps || !settings.bgm || !ensure() || ctx.state !== 'running') return;
     playing = true;
     nextStep = 0;
     nextTime = ctx.currentTime + 0.1;
@@ -152,8 +156,14 @@ export function createSound() {
     descend(t) { tone('pulse12', 880, t, 0.35, 0.18, sfxGain, 330); },
     ascend(t)  { tone('pulse12', 330, t, 0.35, 0.18, sfxGain, 880); },
     win(t) {
-      const seq = ['C5', 'E5', 'G5', 'C6', 'G5', 'C6'];
-      seq.forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.09, i === seq.length - 1 ? 0.45 : 0.08, 0.28, sfxGain));
+      // 華やかなファンファーレ：駆け上がり → 和音で伸ばす → キラキラ
+      ['C5', 'F5', 'A5', 'C6', 'F6'].forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.06, 0.06, 0.26, sfxGain));
+      const h = t + 0.32;
+      [['F5', 'pulse25', 0.24], ['A5', 'pulse12', 0.16], ['C6', 'pulse12', 0.14], ['F3', 'triangle', 0.4]]
+        .forEach(([n, w, v]) => tone(w, noteFreq(n), h, 0.7, v, sfxGain));
+      ['A6', 'C7', 'F7', 'C7', 'A6', 'C7', 'F7'].forEach((n, i) => tone('pulse12', noteFreq(n), h + 0.7 + i * 0.05, 0.05, 0.12, sfxGain));
+      [['F5', 'pulse25', 0.24], ['C6', 'pulse12', 0.14], ['F2', 'triangle', 0.4]]
+        .forEach(([n, w, v]) => tone(w, noteFreq(n), h + 1.05, 0.5, v, sfxGain));
     },
     lose(t) {
       ['G4', 'E4', 'C4'].forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.16, i === 2 ? 0.4 : 0.14, 0.25, sfxGain));
@@ -167,11 +177,13 @@ export function createSound() {
   // 最初の操作で音を使えるようにする（スマホの決まり）
   function unlock() {
     if (!ensure()) return;
-    if (ctx.state !== 'running') ctx.resume();
-    startBgm();
+    if (ctx.state === 'running') { startBgm(); return; }
+    const r = ctx.resume();
+    if (r && r.then) r.then(() => { if (ctx.state === 'running') startBgm(); }).catch(() => { /* 次の操作でやり直す */ });
   }
-  window.addEventListener('pointerdown', unlock, { capture: true });
-  window.addEventListener('keydown', unlock, { capture: true });
+  for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) {
+    window.addEventListener(ev, unlock, { capture: true, passive: true });
+  }
 
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch { /* 保存できない環境 */ } }
 

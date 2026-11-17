@@ -64,7 +64,7 @@ export function createRing(RAPIER, world, preset, chain, armPos, armBody) {
     },
     visual: {
       body,
-      parts: [{ type: 'torus', radius: Rc, tube: tubeR, pos: [0, 0, 0], color: 0xc9ccd3 /* シルバー */, castShadow: false }]
+      parts: [{ type: 'torus', radius: Rc, tube: tubeR, pos: [0, 0, 0], color: 0xe6e8ec /* メッキ調シルバー */, finish: 'chrome', castShadow: false }]
     }
   };
   return ring;

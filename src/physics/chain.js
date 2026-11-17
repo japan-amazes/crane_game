@@ -65,7 +65,8 @@ export function createChain(preset, armPos) {
       wire: LINK_WIRE,
       twist: Math.PI / 3,          // コマ自体のねじれ（60°）
       pos: [0, 0, 0],
-      color: 0xc4c8d0,
+      color: 0xe6e8ec,   // メッキ調シルバー
+      finish: 'chrome',
       castShadow: false
     }]
   }));
@@ -76,7 +77,7 @@ export function createChain(preset, armPos) {
   const ringYaw = (preset.ring.yawDeg || 0) * Math.PI / 180;
   visuals.push({
     body: connectorBody,
-    parts: [{ type: 'splitring', radius: kRc, wire: k.thickness / 4, gap: k.thickness / 2, pos: [0, 0, 0], color: 0xc9ccd3, castShadow: false }]
+    parts: [{ type: 'splitring', radius: kRc, wire: k.thickness / 4, gap: k.thickness / 2, pos: [0, 0, 0], color: 0xe6e8ec, finish: 'chrome', castShadow: false }]
   });
 
   const cosHalf = Math.cos(((c.maxBendDeg ?? 70) * Math.PI / 180) / 2);

@@ -134,11 +134,12 @@ async function boot() {
   const status = document.getElementById('status');
   status.textContent = '読み込み中…';
 
-  const [RAPIER, THREE, sceneMod, debugMod, presetJson] = await Promise.all([
+  const [RAPIER, THREE, sceneMod, debugMod, soundMod, presetJson] = await Promise.all([
     import(LIB.rapier).then(m => m.default || m),
     import(LIB.three),
     import('./render/scene.js'),
     import('./ui/debug.js'),
+    import('./audio/sound.js'),
     fetch('./presets/hook-presets.json').then(r => r.json())
   ]);
   await RAPIER.init();
@@ -146,6 +147,21 @@ async function boot() {
   const basePreset = presetJson.presets[0];
   const debug = debugMod.createDebugPanel(document.getElementById('debug'), basePreset, () => restart(), heightInfo);
   const view = sceneMod.createScene(THREE, document.getElementById('view'));
+
+  // ---- 音（BGM・効果音）----
+  const sound = soundMod.createSound();
+  sound.loadBgm('./assets/music/bgm.json');
+  const btnBgm = document.getElementById('btnBgm');
+  const btnSfx = document.getElementById('btnSfx');
+  function showSoundButtons() {
+    btnBgm.classList.toggle('active', sound.settings.bgm);
+    btnSfx.classList.toggle('active', sound.settings.sfx);
+    btnBgm.textContent = sound.settings.bgm ? '♪ BGM オン' : '♪ BGM オフ';
+    btnSfx.textContent = sound.settings.sfx ? '効果音 オン' : '効果音 オフ';
+  }
+  btnBgm.addEventListener('click', () => { sound.setBgm(!sound.settings.bgm); showSoundButtons(); });
+  btnSfx.addEventListener('click', () => { sound.setSfx(!sound.settings.sfx); showSoundButtons(); });
+  showSoundButtons();
 
   let round = null;
   let acc = 0;
@@ -200,6 +216,9 @@ async function boot() {
   function onPhase(next) {
     setStatus();
     if (next === PHASE.DESCEND) zoomAt = performance.now() + ZOOM_DELAY * 1000;
+    if (next === PHASE.DESCEND) sound.sfx('descend');
+    if (next === PHASE.ASCEND) sound.sfx('ascend');
+    if (next === PHASE.DONE) sound.sfx(round.result === 'win' ? 'win' : 'lose');
     if (next === PHASE.DONE) showResult(round);
   }
 
@@ -229,8 +248,8 @@ async function boot() {
   // ---- 入力（ボタン＋キーボード）----
   const btnX = document.getElementById('btnX');
   const btnZ = document.getElementById('btnZ');
-  bindHold(btnX, on => round.arm.setInput('x', on));
-  bindHold(btnZ, on => round.arm.setInput('z', on));
+  bindHold(btnX, on => { if (on) sound.sfx('tap'); round.arm.setInput('x', on); });
+  bindHold(btnZ, on => { if (on) sound.sfx('tap'); round.arm.setInput('z', on); });
   window.addEventListener('keydown', e => {
     if (e.repeat) return;
     if (e.key === '1' || e.key === 'ArrowRight') round.arm.setInput('x', true);

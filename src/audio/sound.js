@@ -1,0 +1,192 @@
+// =============================================================
+// 音（BGM・効果音）
+// 音声ファイルは使わず、ブラウザの音の機能（Web Audio）でファミコン風の音を作って鳴らす
+// BGM は楽譜データ（assets/music/bgm.json）を読んで演奏する。形式は assets/music/README.md
+// スマホは画面を一度タップするまで音を出せないため、最初の操作で鳴り始める
+// =============================================================
+
+const STORE_KEY = 'crane.sound.v1';
+
+// 音名 → 周波数（A4 = 440Hz）。例：C4, F#5, Bb3
+const NOTE_INDEX = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+export function noteFreq(name) {
+  const m = /^([A-G])([#b]?)(-?\d)$/.exec(name);
+  if (!m) return null;
+  let n = NOTE_INDEX[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+  const midi = (Number(m[3]) + 1) * 12 + n;
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+// 楽譜の1トラック（"C5:2 E5:2 -:4 ..."）を [{ step, len, note }] にする
+export function parseTrack(text) {
+  const out = [];
+  let step = 0;
+  for (const tok of String(text).trim().split(/\s+/)) {
+    if (!tok || tok === '|') continue;            // | は小節の区切り（読みやすさ用、無視）
+    const [note, lenStr] = tok.split(':');
+    const len = Number(lenStr || 1);
+    if (!(len > 0)) continue;
+    if (note !== '-') out.push({ step, len, note });
+    step += len;
+  }
+  return { events: out, total: step };
+}
+
+export function createSound() {
+  let settings = { bgm: true, sfx: true };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch { /* 保存できない環境 */ }
+
+  let ctx = null, master = null, bgmGain = null, sfxGain = null;
+  const waves = {};
+  let noiseBuf = null;
+  let song = null;          // { stepSec, totalSteps, tracks: [{ wave, volume, events }] }
+  let playing = false;
+  let timer = null;
+  let nextStep = 0, nextTime = 0;
+
+  function ensure() {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    master = ctx.createGain(); master.gain.value = 0.6; master.connect(ctx.destination);
+    bgmGain = ctx.createGain(); bgmGain.gain.value = 0.45; bgmGain.connect(master);
+    sfxGain = ctx.createGain(); sfxGain.gain.value = 0.8; sfxGain.connect(master);
+    // パルス波（デューティ比 12.5% / 25%）：ファミコンの矩形波の音色
+    for (const [name, duty] of [['pulse12', 0.125], ['pulse25', 0.25]]) {
+      const N = 32, re = new Float32Array(N), im = new Float32Array(N);
+      for (let k = 1; k < N; k++) im[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+      waves[name] = ctx.createPeriodicWave(re, im);
+    }
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    document.addEventListener('visibilitychange', () => {
+      if (!ctx) return;
+      if (document.hidden) ctx.suspend(); else ctx.resume();
+    });
+    return ctx;
+  }
+
+  // 1音を鳴らす（音色・周波数・開始時刻・長さ・音量・出力先）
+  function tone(wave, freq, t, dur, vol, out, slideTo) {
+    const o = ctx.createOscillator();
+    if (waves[wave]) o.setPeriodicWave(waves[wave]); else o.type = wave === 'triangle' ? 'triangle' : wave === 'sine' ? 'sine' : 'square';
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    const g = ctx.createGain();
+    const rel = Math.min(0.04, dur * 0.3);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.005);
+    g.gain.setValueAtTime(vol, t + dur - rel);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(g); g.connect(out);
+    o.start(t); o.stop(t + dur + 0.01);
+  }
+
+  // 打楽器（K＝バスドラ、S＝スネア、H＝ハイハット）
+  function drum(kind, t, vol, out) {
+    if (kind === 'K') { tone('sine', 150, t, 0.12, vol, out, 40); return; }
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = kind === 'H' ? 'highpass' : 'bandpass';
+    f.frequency.value = kind === 'H' ? 7000 : 1800;
+    const g = ctx.createGain();
+    const dur = kind === 'H' ? 0.04 : 0.12;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f); f.connect(g); g.connect(out);
+    src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.01);
+  }
+
+  // ---- BGM ----
+  function loadSong(json) {
+    const stepsPerBeat = json.stepsPerBeat || 4;
+    const stepSec = 60 / (json.bpm || 120) / stepsPerBeat;
+    let totalSteps = 0;
+    const tracks = (json.tracks || []).map(tr => {
+      const { events, total } = parseTrack(tr.notes);
+      totalSteps = Math.max(totalSteps, total);
+      return { wave: tr.wave || 'pulse25', volume: tr.volume ?? 0.3, gate: tr.gate ?? 0.85, events };
+    });
+    song = { stepSec, totalSteps, tracks };
+  }
+
+  function schedule() {
+    const ahead = ctx.currentTime + 0.25;
+    while (nextTime < ahead) {
+      for (const tr of song.tracks) {
+        for (const ev of tr.events) {
+          if (ev.step !== nextStep) continue;
+          const dur = ev.len * song.stepSec;
+          if (tr.wave === 'noise') drum(ev.note, nextTime, tr.volume, bgmGain);
+          else {
+            const f = noteFreq(ev.note);
+            if (f) tone(tr.wave, f, nextTime, dur * tr.gate, tr.volume, bgmGain);
+          }
+        }
+      }
+      nextTime += song.stepSec;
+      nextStep = (nextStep + 1) % song.totalSteps;
+    }
+  }
+
+  function startBgm() {
+    if (playing || !song || !song.totalSteps || !settings.bgm || !ensure()) return;
+    playing = true;
+    nextStep = 0;
+    nextTime = ctx.currentTime + 0.1;
+    schedule();
+    timer = setInterval(schedule, 50);
+  }
+  function stopBgm() {
+    playing = false;
+    if (timer) clearInterval(timer);
+    timer = null;
+  }
+
+  // ---- 効果音 ----
+  const SFX = {
+    tap(t)     { tone('pulse25', 1320, t, 0.05, 0.25, sfxGain); },
+    descend(t) { tone('pulse12', 880, t, 0.35, 0.18, sfxGain, 330); },
+    ascend(t)  { tone('pulse12', 330, t, 0.35, 0.18, sfxGain, 880); },
+    win(t) {
+      const seq = ['C5', 'E5', 'G5', 'C6', 'G5', 'C6'];
+      seq.forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.09, i === seq.length - 1 ? 0.45 : 0.08, 0.28, sfxGain));
+    },
+    lose(t) {
+      ['G4', 'E4', 'C4'].forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.16, i === 2 ? 0.4 : 0.14, 0.25, sfxGain));
+    }
+  };
+  function sfx(name) {
+    if (!settings.sfx || !ctx || ctx.state !== 'running' || !SFX[name]) return;
+    SFX[name](ctx.currentTime + 0.01);
+  }
+
+  // 最初の操作で音を使えるようにする（スマホの決まり）
+  function unlock() {
+    if (!ensure()) return;
+    if (ctx.state !== 'running') ctx.resume();
+    startBgm();
+  }
+  window.addEventListener('pointerdown', unlock, { capture: true });
+  window.addEventListener('keydown', unlock, { capture: true });
+
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch { /* 保存できない環境 */ } }
+
+  return {
+    settings,
+    sfx,
+    async loadBgm(url) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) return;
+        loadSong(await r.json());
+        if (ctx && ctx.state === 'running') startBgm();
+      } catch (e) { console.warn('BGMを読み込めませんでした', e); }
+    },
+    setBgm(on) { settings.bgm = on; save(); if (on) { unlock(); } else stopBgm(); },
+    setSfx(on) { settings.sfx = on; save(); }
+  };
+}

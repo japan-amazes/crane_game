@@ -58,6 +58,31 @@ export function createScene(THREE, canvas) {
     return tex;
   }
 
+  // メッキの写り込み用の周囲（画面には出さない）：暗い筐体の中に、照明の光る帯が並んでいるイメージ
+  let chromeEnvTex = null;
+  function chromeEnv() {
+    if (chromeEnvTex) return chromeEnvTex;
+    const env = new THREE.Scene();
+    env.background = new THREE.Color(0x1a1d24);
+    const lit = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+    const warm = new THREE.MeshBasicMaterial({ color: 0xfff1dc, side: THREE.DoubleSide });
+    const dim = new THREE.MeshBasicMaterial({ color: 0x5a6070, side: THREE.DoubleSide });
+    const add = (mat, w, h, x, y, z, rx = 0, ry = 0) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      m.position.set(x, y, z); m.rotation.set(rx, ry, 0); env.add(m);
+    };
+    add(lit, 30, 3, 0, 9, -6, Math.PI / 2);        // 天井の蛍光灯（2本）
+    add(lit, 30, 3, 0, 9, 6, Math.PI / 2);
+    add(warm, 2, 14, -10, 2, 0, 0, Math.PI / 2);   // 左右の縦の照明
+    add(warm, 2, 14, 10, 2, 0, 0, Math.PI / 2);
+    add(lit, 16, 1.2, 0, 4, 10);                   // 手前上の帯
+    add(dim, 40, 40, 0, -8, 0, Math.PI / 2);       // 下（板・台のぼんやりした反射）
+    const pm = new THREE.PMREMGenerator(renderer);
+    chromeEnvTex = pm.fromScene(env, 0.02).texture;
+    pm.dispose();
+    return chromeEnvTex;
+  }
+
   let tracked = [];   // { body, group }
   let round = null;
   let viewName = 'front';
@@ -72,11 +97,14 @@ export function createScene(THREE, canvas) {
     else if (p.type === 'chainlink') geo = chainLinkGeometry(p.length, p.width, p.wire, 0);
     else if (p.type === 'curblink') geo = chainLinkGeometry(p.length, p.width, p.wire, p.twist);
     else if (p.type === 'splitring') geo = splitRingGeometry(p.radius, p.wire, p.gap);
-    const mat = new THREE.MeshStandardMaterial({
-      color: p.color,
-      metalness: p.type === 'box' ? 0.1 : 0.6,
-      roughness: 0.45
-    });
+    const mat = p.finish === 'chrome'
+      // メッキ調（リング・チェーン・つなぎのリング）：強い光沢＋筐体照明の写り込み
+      ? new THREE.MeshStandardMaterial({ color: p.color, metalness: 1, roughness: 0.14, envMap: chromeEnv(), envMapIntensity: 1.2 })
+      : new THREE.MeshStandardMaterial({
+        color: p.color,
+        metalness: p.type === 'box' ? 0.1 : 0.6,
+        roughness: 0.45
+      });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
     if (p.quat) mesh.quaternion.set(p.quat.x, p.quat.y, p.quat.z, p.quat.w);

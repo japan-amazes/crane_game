@@ -52,6 +52,9 @@
     border: 1px solid var(--line); background: #1f2532; color: var(--sub); }
   button.big { font-size: 16px; padding: 12px; background: var(--accent); color: #fff; border: none; font-weight: 700; }
   #btnRetry { margin-top: 10px; width: 100%; }
+  .sounds { display: flex; gap: 6px; margin-top: 8px; }
+  .sounds button { flex: 1; font-size: 13px; padding: 6px 8px; }
+  .sounds button.active { color: var(--text); }
 
   /* 数値調整パネル */
   #debug { position: fixed; inset: 0; overflow-y: auto; background: #0d1016f5; padding: 14px 14px 40px; z-index: 10; }
@@ -87,6 +90,10 @@
       <button id="btnZ" class="hold" disabled>②</button>
     </div>
     <button id="btnRetry">最初から</button>
+    <div class="sounds">
+      <button id="btnBgm">♪ BGM</button>
+      <button id="btnSfx">効果音</button>
+    </div>
   </div>
 </div>
 <div id="debug" hidden></div>

@@ -118,6 +118,23 @@ async function boot() {
   let acc = 0;
   let last = performance.now();
 
+  // ---- カメラモード ----
+  // normal：ずっと正面 / zoom：移動中は正面、下降が始まったらフック付近の拡大に切り替え
+  const CAM_KEY = 'crane.cameraMode.v1';
+  let camMode = 'normal';
+  try { camMode = localStorage.getItem(CAM_KEY) === 'zoom' ? 'zoom' : 'normal'; } catch { /* 保存できない環境 */ }
+  const ZOOM_PHASES = [PHASE.DESCEND, PHASE.HOLD, PHASE.ASCEND, PHASE.JUDGE, PHASE.DONE];
+  function applyCamera() {
+    const zoomNow = camMode === 'zoom' && round && ZOOM_PHASES.includes(round.arm.phase);
+    view.setView(zoomNow ? 'zoom' : 'front');
+    document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('active', b.dataset.cam === camMode));
+  }
+  function setCamMode(mode) {
+    camMode = mode;
+    try { localStorage.setItem(CAM_KEY, mode); } catch { /* 保存できない環境 */ }
+    applyCamera();
+  }
+
   function restart() {
     round = buildRound(RAPIER, debug.currentPreset());
     round.onPhase = onPhase;
@@ -125,10 +142,12 @@ async function boot() {
     acc = 0;
     showResult(null);
     setStatus();
+    applyCamera();
   }
 
   function onPhase(next) {
     setStatus();
+    if (next === PHASE.DESCEND) applyCamera();
     if (next === PHASE.DONE) showResult(round);
   }
 
@@ -141,7 +160,7 @@ async function boot() {
       waitZ: '② を押している間、奥へ動きます（離すと下降）',
       moveZ: '奥へ移動中…',
       stopZ: '停止中…',
-      descend: '下降中…（「拡大」でフック付近を見られます）',
+      descend: '下降中…',
       hold: '下で待機中…',
       ascend: '引き上げ中…',
       judge: '判定中…',
@@ -161,14 +180,14 @@ async function boot() {
     if (e.repeat) return;
     if (e.key === '1' || e.key === 'ArrowRight') round.arm.setInput('x', true);
     if (e.key === '2' || e.key === 'ArrowUp') round.arm.setInput('z', true);
-    if (e.key === '3' || e.key === ' ') { view.toggleZoom(); e.preventDefault(); }
+    if (e.key === '3' || e.key === ' ') { setCamMode(camMode === 'zoom' ? 'normal' : 'zoom'); e.preventDefault(); }
   });
   window.addEventListener('keyup', e => {
     if (e.key === '1' || e.key === 'ArrowRight') round.arm.setInput('x', false);
     if (e.key === '2' || e.key === 'ArrowUp') round.arm.setInput('z', false);
   });
-  document.querySelectorAll('[data-view]').forEach(b => {
-    b.addEventListener('click', () => view.setView(b.dataset.view));
+  document.querySelectorAll('[data-cam]').forEach(b => {
+    b.addEventListener('click', () => setCamMode(b.dataset.cam));
   });
   document.getElementById('btnRetry').addEventListener('click', restart);
   document.getElementById('btnDebug').addEventListener('click', () => debug.toggle());

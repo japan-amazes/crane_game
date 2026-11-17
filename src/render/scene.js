@@ -1,7 +1,7 @@
 // =============================================================
 // 3D描画（Three.js）
 // 物理側が返す visual（body ＋ 部品リスト）から形を作り、毎フレーム位置を写す
-// カメラ：正面 / 横から / フック拡大
+// カメラ：正面（front）/ フック付近の拡大（zoom）
 // =============================================================
 
 export function createScene(THREE, canvas) {
@@ -174,18 +174,13 @@ export function createScene(THREE, canvas) {
       const hfov = 2 * Math.atan(Math.tan(fovDeg * Math.PI / 360) * aspect);
       return (width / 2) / Math.tan(hfov / 2);
     };
-    // 正面・横から：板からアームまでの高さ全体が入るように引く
+    // 正面：板からアームまでの高さ全体が入るように引く
     const top = round.preset.field.armHeight + 2;
     const fitH = (height, fovDeg) => (height / 2) / Math.tan(fovDeg * Math.PI / 360);
     if (name === 'front') {
       camera.fov = 50;
       const d = Math.max(40, fit(30, 50), fitH(top * 1.35, 50));
       camera.position.set(0, top * 0.6, d);
-      camera.lookAt(0, top * 0.5, 0);
-    } else if (name === 'side') {
-      camera.fov = 50;
-      const d = Math.max(40, fit(26, 50), fitH(top * 1.35, 50));
-      camera.position.set(d, top * 0.6, 0);
       camera.lookAt(0, top * 0.5, 0);
     } else if (name === 'zoom') {
       camera.fov = 40;
@@ -194,13 +189,6 @@ export function createScene(THREE, canvas) {
       camera.lookAt(h.x, h.y + 1.5, h.z + 0.8);
     }
     camera.updateProjectionMatrix();
-    document.querySelectorAll('[data-view]').forEach(b => {
-      b.classList.toggle('active', b.dataset.view === name);
-    });
-  }
-
-  function toggleZoom() {
-    setView(viewName === 'zoom' ? 'front' : 'zoom');
   }
 
   function resize() {
@@ -256,7 +244,6 @@ export function createScene(THREE, canvas) {
     setRound,
     savePrev,
     setView,
-    toggleZoom,
     render,
     setGuide(on) { showGuide = on; }
   };

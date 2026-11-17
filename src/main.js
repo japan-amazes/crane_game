@@ -123,16 +123,19 @@ async function boot() {
   const CAM_KEY = 'crane.cameraMode.v1';
   let camMode = 'normal';
   try { camMode = localStorage.getItem(CAM_KEY) === 'zoom' ? 'zoom' : 'normal'; } catch { /* 保存できない環境 */ }
-  const ZOOM_PHASES = [PHASE.DESCEND, PHASE.HOLD, PHASE.ASCEND, PHASE.JUDGE, PHASE.DONE];
-  function applyCamera() {
-    const zoomNow = camMode === 'zoom' && round && ZOOM_PHASES.includes(round.arm.phase);
-    view.setView(zoomNow ? 'zoom' : 'front');
+  const ZOOM_DELAY = 1.0;   // 下降が始まってから拡大に切り替えるまで（秒）
+  const ZOOM_MOVE = 0.8;    // 切り替えにかける時間（秒）
+  let zoomAt = null;        // 拡大に切り替える予定時刻（performance.now の値）
+  let zoomed = false;
+  function applyCamera(duration = 0) {
+    const zoomNow = camMode === 'zoom' && zoomed;
+    view.setView(zoomNow ? 'zoom' : 'front', duration);
     document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('active', b.dataset.cam === camMode));
   }
   function setCamMode(mode) {
     camMode = mode;
     try { localStorage.setItem(CAM_KEY, mode); } catch { /* 保存できない環境 */ }
-    applyCamera();
+    applyCamera(0.5);
   }
 
   function restart() {
@@ -142,12 +145,14 @@ async function boot() {
     acc = 0;
     showResult(null);
     setStatus();
+    zoomAt = null;
+    zoomed = false;
     applyCamera();
   }
 
   function onPhase(next) {
     setStatus();
-    if (next === PHASE.DESCEND) applyCamera();
+    if (next === PHASE.DESCEND) zoomAt = performance.now() + ZOOM_DELAY * 1000;
     if (next === PHASE.DONE) showResult(round);
   }
 
@@ -222,6 +227,12 @@ async function boot() {
     while (running && acc >= STEP && n < 16) { view.savePrev(); round.step(); acc -= STEP; n++; }
     if (!running) acc = 0;
     if (n === 16) acc = 0; // 端末が重いときは遅れを捨てる
+    // 下降開始から ZOOM_DELAY 秒たったら拡大へ（ズームモードのときだけ動く）
+    if (zoomAt !== null && now >= zoomAt) {
+      zoomAt = null;
+      zoomed = true;
+      if (camMode === 'zoom') applyCamera(ZOOM_MOVE);
+    }
     view.setGuide(debug.guide);
     // 物理の刻みの途中を補って描く（停止後は最新の状態をそのまま描く）
     view.render(running ? acc / STEP : 1);

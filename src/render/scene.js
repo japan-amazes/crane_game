@@ -164,9 +164,8 @@ export function createScene(THREE, canvas) {
     setView(viewName);
   }
 
-  function setView(name) {
-    viewName = name;
-    if (!round) return;
+  // 各カメラの位置・注視点・画角を計算する
+  function viewPose(name) {
     const h = round.machine.hookWorldBase();
     // 縦長の画面でも台全体（横幅約26cm）が入るよう、縦横比に合わせて距離を決める
     const aspect = camera.aspect || 0.5;
@@ -177,18 +176,56 @@ export function createScene(THREE, canvas) {
     // 正面：板からアームまでの高さ全体が入るように引く
     const top = round.preset.field.armHeight + 2;
     const fitH = (height, fovDeg) => (height / 2) / Math.tan(fovDeg * Math.PI / 360);
-    if (name === 'front') {
-      camera.fov = 50;
-      const d = Math.max(40, fit(30, 50), fitH(top * 1.35, 50));
-      camera.position.set(0, top * 0.6, d);
-      camera.lookAt(0, top * 0.5, 0);
-    } else if (name === 'zoom') {
-      camera.fov = 40;
+    if (name === 'zoom') {
       const d = Math.max(16, fit(11, 40));
-      camera.position.set(h.x + d * 0.45, h.y + 5, h.z + d * 0.9);
-      camera.lookAt(h.x, h.y + 1.5, h.z + 0.8);
+      return {
+        fov: 40,
+        pos: new THREE.Vector3(h.x + d * 0.45, h.y + 5, h.z + d * 0.9),
+        look: new THREE.Vector3(h.x, h.y + 1.5, h.z + 0.8)
+      };
     }
+    const d = Math.max(40, fit(30, 50), fitH(top * 1.35, 50));
+    return { fov: 50, pos: new THREE.Vector3(0, top * 0.6, d), look: new THREE.Vector3(0, top * 0.5, 0) };
+  }
+
+  // 今のカメラの状態（切り替えの途中もここを基準にする）
+  const cur = { fov: 50, pos: new THREE.Vector3(), look: new THREE.Vector3() };
+  let tween = null;   // { from, to, start, dur }
+
+  function applyPose(p) {
+    camera.fov = p.fov;
+    camera.position.copy(p.pos);
+    camera.lookAt(p.look);
     camera.updateProjectionMatrix();
+    cur.fov = p.fov; cur.pos.copy(p.pos); cur.look.copy(p.look);
+  }
+
+  // duration（秒）を付けると、今の位置からなめらかに移る
+  function setView(name, duration = 0) {
+    viewName = name;
+    if (!round) return;
+    const to = viewPose(name);
+    if (duration > 0) {
+      tween = {
+        from: { fov: cur.fov, pos: cur.pos.clone(), look: cur.look.clone() },
+        to, start: performance.now(), dur: duration * 1000
+      };
+    } else {
+      tween = null;
+      applyPose(to);
+    }
+  }
+
+  function updateTween() {
+    if (!tween) return;
+    let t = (performance.now() - tween.start) / tween.dur;
+    if (t >= 1) { applyPose(tween.to); tween = null; return; }
+    t = t * t * (3 - 2 * t);   // 動き出しと止まり際をゆっくり
+    applyPose({
+      fov: tween.from.fov + (tween.to.fov - tween.from.fov) * t,
+      pos: tween.from.pos.clone().lerp(tween.to.pos, t),
+      look: tween.from.look.clone().lerp(tween.to.look, t)
+    });
   }
 
   function resize() {
@@ -197,7 +234,7 @@ export function createScene(THREE, canvas) {
         canvas.height !== Math.floor(h * renderer.getPixelRatio())) {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      setView(viewName);
+      if (tween) tween.to = viewPose(viewName); else setView(viewName);
     }
   }
 
@@ -223,6 +260,7 @@ export function createScene(THREE, canvas) {
   const tmpP = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
   function render(alpha = 1) {
     resize();
+    updateTween();
     let armGroup = null;
     for (const t of tracked) {
       const p = t.body.translation(), q = t.body.rotation();

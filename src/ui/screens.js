@@ -104,20 +104,25 @@ export function createScreens({ progress, onPickStage }) {
   }
 
   // ---- 広告（仮）----
-  // 本物の広告は、アプリにする段階で差し替える。今は3秒の仮画面のあと＋1クレジット
+  // 本物の広告は、アプリにする段階で差し替える。今は試技中なので待ち時間なし（AD_SECONDS を3にすると3秒の仮画面）
+  const AD_SECONDS = 0;
   function showAd(onDone) {
-    let t = 3;
+    let t = AD_SECONDS;
     open(`
       <div class="m-head"><b>広告（仮）</b></div>
       <div class="m-ad">ここに広告が表示されます<div class="m-ad-t">${t}</div></div>`);
     const tEl = root.querySelector('.m-ad-t');
+    const finish = () => {
+      progress.addCredit(1);
+      root.querySelector('.m-ad').innerHTML = '<b>＋1 クレジット</b><button class="big" data-close>OK</button>';
+      root.querySelector('[data-close]').addEventListener('click', () => { close(); if (onDone) onDone(); });
+    };
+    if (t <= 0) { finish(); return; }
     const timer = setInterval(() => {
       t--;
       if (t > 0) { tEl.textContent = t; return; }
       clearInterval(timer);
-      progress.addCredit(1);
-      root.querySelector('.m-ad').innerHTML = '<b>＋1 クレジット</b><button class="big" data-close>OK</button>';
-      root.querySelector('[data-close]').addEventListener('click', () => { close(); if (onDone) onDone(); });
+      finish();
     }, 1000);
   }
 

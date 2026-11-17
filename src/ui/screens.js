@@ -106,6 +106,7 @@ export function createScreens({ progress, onPickStage }) {
   // ---- 広告（仮）----
   // 本物の広告は、アプリにする段階で差し替える。今は試技中なので待ち時間なし（AD_SECONDS を3にすると3秒の仮画面）
   const AD_SECONDS = 0;
+  const AD_CREDITS = 5;   // 広告1回で増えるクレジット
   function showAd(onDone) {
     let t = AD_SECONDS;
     open(`
@@ -113,8 +114,8 @@ export function createScreens({ progress, onPickStage }) {
       <div class="m-ad">ここに広告が表示されます<div class="m-ad-t">${t}</div></div>`);
     const tEl = root.querySelector('.m-ad-t');
     const finish = () => {
-      progress.addCredit(1);
-      root.querySelector('.m-ad').innerHTML = '<b>＋1 クレジット</b><button class="big" data-close>OK</button>';
+      progress.addCredit(AD_CREDITS);
+      root.querySelector('.m-ad').innerHTML = `<b>＋${AD_CREDITS} クレジット</b><button class="big" data-close>OK</button>`;
       root.querySelector('[data-close]').addEventListener('click', () => { close(); if (onDone) onDone(); });
     };
     if (t <= 0) { finish(); return; }
@@ -130,8 +131,8 @@ export function createScreens({ progress, onPickStage }) {
   function showNoCredit(onDone) {
     open(`
       <div class="m-head"><b>クレジットがありません</b><button class="m-x" data-close>×</button></div>
-      <div class="m-sum">毎日0時に5クレジットに戻ります。広告を見ると1クレジット追加できます</div>
-      <button class="big" data-ad>広告を見て ＋1 クレジット</button>`);
+      <div class="m-sum">毎日0時に5クレジットに戻ります。広告を見ると${AD_CREDITS}クレジット追加できます</div>
+      <button class="big" data-ad>広告を見て ＋${AD_CREDITS} クレジット</button>`);
     root.querySelector('[data-ad]').addEventListener('click', () => showAd(onDone));
   }
 

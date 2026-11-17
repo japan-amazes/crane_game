@@ -25,7 +25,7 @@ export function createScene(THREE, canvas) {
   scene.add(sun);
 
   // 真下ガイド：アームの真下に、周りをぼかした黒い丸（影のような目印）を表示
-  const GUIDE_SIZE = 5;      // 直径（cm）。リングの直径くらい
+  const GUIDE_SIZE = 3.5;    // 直径（cm）
   const guide = new THREE.Mesh(
     new THREE.PlaneGeometry(GUIDE_SIZE, GUIDE_SIZE),
     new THREE.MeshBasicMaterial({

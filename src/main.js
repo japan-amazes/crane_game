@@ -25,7 +25,9 @@ export function buildRound(RAPIER, preset) {
 
   // 待機時：リング下端が「フック頂点＋clearance」の高さに来るアーム位置
   const ringBottomHome = machine.boardTop + machine.hookTop + preset.arm.clearance;
-  const homeY = ringBottomHome + preset.chain.length + g.diameter - g.thickness / 2;
+  const k = preset.connector;
+  const linkSpan = k.diameter - k.thickness;  // つなぎのリングの長さ（中心線）
+  const homeY = ringBottomHome + preset.chain.length + linkSpan + g.diameter - g.thickness / 2;
   // 下降：リング下端が板上面に着き、さらに dropExtra だけ鎖がたるむ所まで
   const bottomY = homeY - (machine.hookTop + preset.arm.clearance + preset.arm.dropExtra);
 
@@ -39,7 +41,7 @@ export function buildRound(RAPIER, preset) {
     hookRecord: null, // 引き上げ直前のフックとの位置関係
     result: null,     // 'win' | 'lose'
     maxLift: 0,
-    visuals: [table.visual, machine.visual, arm.visual, ...chain.visuals, ring.visual],
+    visuals: [table.visual, machine.visual, arm.visual, ...chain.visuals, ring.linkVisual, ring.visual],
     step() {
       arm.update(STEP);
       applyTwistReturn(ring, STEP);

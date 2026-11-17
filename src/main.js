@@ -101,7 +101,7 @@ export function buildRound(RAPIER, preset) {
 }
 
 // ステージの設定：ステージ番号（0始まり）を各項目の段階に分けて、基本設定に重ねる
-// 例：levels が10段階×4項目なら、番号の1の位＝フックの向き、10の位＝チェーン、100の位＝リングの径、1000の位＝リングの太さ
+// 最初の項目がいちばん早く変わる（初期位置の左右 → フックの向き → チェーン → リングの径 → リングの太さ）
 export function stageCount(spec) {
   return spec.levels.reduce((n, lv) => n * lv.values.length, 1);
 }
@@ -217,9 +217,17 @@ async function boot() {
     view.setView(zoomNow ? 'zoom' : 'front', duration);
     document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('active', b.dataset.cam === camMode));
   }
+  // 確認用ズーム：①を押す前だけ、斜めからフック（口の向き）を見られる
+  let peek = false;
+  function setPeek(on) {
+    peek = on;
+    btnPeek.classList.toggle('active', on);
+    if (on) view.setView('zoom', 0.5); else applyCamera(0.5);
+  }
   function setCamMode(mode) {
     camMode = mode;
     try { localStorage.setItem(CAM_KEY, mode); } catch { /* 保存できない環境 */ }
+    if (peek) { peek = false; btnPeek.classList.remove('active'); }
     applyCamera(0.5);
   }
 
@@ -234,6 +242,7 @@ async function boot() {
     zoomAt = null;
     unzoomAt = null;
     zoomed = false;
+    if (peek) { peek = false; btnPeek.classList.remove('active'); }
     applyCamera();
   }
 
@@ -287,11 +296,15 @@ async function boot() {
     status.textContent = msg;
     btnX.disabled = !(ph === PHASE.READY || ph === PHASE.MOVE_X);
     btnZ.disabled = !(ph === PHASE.WAIT_Z || ph === PHASE.STOP_X || ph === PHASE.MOVE_Z);
+    btnPeek.disabled = ph !== PHASE.READY;
+    if (peek && ph !== PHASE.READY) setPeek(false);
   }
 
   // ---- 入力（ボタン＋キーボード）----
   const btnX = document.getElementById('btnX');
   const btnZ = document.getElementById('btnZ');
+  const btnPeek = document.getElementById('btnPeek');
+  btnPeek.addEventListener('click', () => { if (!btnPeek.disabled) setPeek(!peek); });
   bindHold(btnX, on => { if (on) sound.sfx('tap'); round.arm.setInput('x', on); });
   bindHold(btnZ, on => { if (on) sound.sfx('tap'); round.arm.setInput('z', on); });
   window.addEventListener('keydown', e => {

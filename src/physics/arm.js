@@ -33,7 +33,11 @@ export class Arm {
     this.f = preset.field;
     this.homeY = homeY;
     this.bottomY = bottomY;
-    this.pos = { x: this.f.xMin, y: homeY, z: this.f.zFront };
+    // 初期位置：左端（①で右へ）か右端（①で左へ）。field.startSide で決まる
+    this.dirX = this.f.startSide === 'right' ? -1 : 1;
+    this.startX = this.dirX > 0 ? this.f.xMin : this.f.xMax;
+    this.endX = this.dirX > 0 ? this.f.xMax : this.f.xMin;
+    this.pos = { x: this.startX, y: homeY, z: this.f.zFront };
     this.vel = { x: 0, y: 0, z: 0 };
     this.phase = PHASE.READY;
     this.timer = 0;
@@ -118,7 +122,7 @@ export class Arm {
 
     switch (this.phase) {
       case PHASE.MOVE_X:
-        this.vel.x = this.approach(this.vel.x, p.speedX, dt);
+        this.vel.x = this.approach(this.vel.x, this.dirX * p.speedX, dt);
         break;
       case PHASE.STOP_X:
         this.vel.x = this.approach(this.vel.x, 0, dt);
@@ -176,9 +180,9 @@ export class Arm {
         break;
       case PHASE.RETURN_X:
         // 横（xMin）へ
-        this.vel.x = this.approach(this.vel.x, this.stopSpeed(p.speedX, f.xMin - this.pos.x), dt);
-        if (Math.abs(f.xMin - this.pos.x) < 0.01 && Math.abs(this.vel.x) < 0.05) {
-          this.pos.x = f.xMin; this.vel.x = 0;
+        this.vel.x = this.approach(this.vel.x, this.stopSpeed(p.speedX, this.startX - this.pos.x), dt);
+        if (Math.abs(this.startX - this.pos.x) < 0.01 && Math.abs(this.vel.x) < 0.05) {
+          this.pos.x = this.startX; this.vel.x = 0;
           this.setPhase(PHASE.READY);
         }
         break;
@@ -190,8 +194,8 @@ export class Arm {
     this.pos.x += this.vel.x * dt;
     this.pos.y += this.vel.y * dt;
     this.pos.z += this.vel.z * dt;
-    if (this.pos.x > f.xMax) {
-      this.pos.x = f.xMax; this.vel.x = 0;
+    if ((this.pos.x - this.endX) * this.dirX > 0) {
+      this.pos.x = this.endX; this.vel.x = 0;
       if (this.phase === PHASE.MOVE_X || this.phase === PHASE.STOP_X) this.setPhase(PHASE.WAIT_Z);
     }
     if (this.pos.z < f.zBack) {

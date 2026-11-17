@@ -7,10 +7,11 @@
       "id": "standard",
       "name": "標準フック（仮）",
       "field": {
-        "xMin": -15,
-        "xMax": 15,
+        "xMin": -12,
+        "xMax": 12,
         "zFront": 10,
         "zBack": -10,
+        "startSide": "left",
         "tableTiltDeg": 0,
         "armHeight": 45
       },

@@ -15,7 +15,8 @@
     --accent: #ff5577;
     --ok: #3ddc97;
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* touch-action: manipulation … 連続タップ（ダブルタップ）で画面が拡大されないように */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
     overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
@@ -170,6 +171,11 @@
 </div>
 <div id="debug" hidden></div>
 <div id="modal" hidden></div>
+<script>
+  // iPhone の Safari は user-scalable=no を無視するので、ダブルタップとピンチでの拡大を止める
+  document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+</script>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

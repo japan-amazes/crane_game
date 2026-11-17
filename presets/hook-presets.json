@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "units": "長さ=cm / 重さ=g / 角度=度 / 速さ=cm/s / 加速度=cm/s²",
+  "note": "仮の値。参考動画の実測でフェーズ2に更新する",
+  "presets": [
+    {
+      "id": "standard",
+      "name": "標準フック（仮）",
+      "field": {
+        "xMin": -9, "xMax": 9,
+        "zFront": 7, "zBack": -7,
+        "tableTiltDeg": 0
+      },
+      "arm": {
+        "speedX": 7,
+        "speedZ": 7,
+        "accel": 60,
+        "decel": 90,
+        "descendSpeed": 9,
+        "ascendSpeed": 6,
+        "clearance": 3,
+        "dropExtra": 1.5,
+        "holdTime": 0.8,
+        "judgeTime": 1.5
+      },
+      "chain": {
+        "length": 12,
+        "links": 8,
+        "linkRadius": 0.12,
+        "linkMass": 1.5,
+        "linearDamping": 0.15,
+        "angularDamping": 0.3
+      },
+      "ring": {
+        "diameter": 5,
+        "thickness": 0.5,
+        "mass": 15,
+        "yawDeg": 0,
+        "friction": 0.4,
+        "linearDamping": 0.1,
+        "angularDamping": 0.4,
+        "twistReturn": 0
+      },
+      "hook": {
+        "type": "standard",
+        "postHeight": 3.5,
+        "arcRadius": 1.0,
+        "tailLength": 1.2,
+        "thickness": 0.44,
+        "tipBallRadius": 0,
+        "yawDeg": 0,
+        "offsetX": 0,
+        "offsetZ": 0,
+        "friction": 0.5
+      },
+      "board": {
+        "width": 14,
+        "depth": 10,
+        "height": 0.8,
+        "mass": 120,
+        "material": "plastic",
+        "liftJudge": 3
+      },
+      "materials": {
+        "plastic": { "friction": 0.3, "restitution": 0.15 },
+        "metal": { "friction": 0.2, "restitution": 0.25 },
+        "wood": { "friction": 0.5, "restitution": 0.1 }
+      }
+    }
+  ]
+}

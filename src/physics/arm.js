@@ -2,8 +2,7 @@
 // アーム（吊り元）の動き
 // ①を押している間 横（+x）へ、離すと止まる
 // ②を押している間 奥（-z）へ、離すと止まって下降 → 待機 → 上昇
-// 失敗後に続ける場合：（途中の高さなら上まで上がる →）手前へ戻る → 横へ戻る → 初期位置で①待ち（揺れはそのまま残る）
-// 判定は上がりきる前に確定することがある（finish()）
+// 失敗後に続ける場合：手前へ戻る → 横へ戻る → 初期位置で①待ち（揺れはそのまま残る）
 // 位置で動かすキネマティック物体。加速・減速があるので鎖とリングが揺れる
 // =============================================================
 
@@ -19,7 +18,6 @@ export const PHASE = {
   ASCEND: 'ascend',        // 上昇
   JUDGE: 'judge',          // 上で判定待ち
   DONE: 'done',
-  RETURN_UP: 'returnUp',   // 初期位置へ戻る（途中で判定が確定したときは、まず上まで上がる）
   RETURN_Z: 'returnZ',     // 初期位置へ戻る（まず手前へ）
   RETURN_X: 'returnX'      // 初期位置へ戻る（次に横へ）
 };
@@ -89,13 +87,7 @@ export class Arm {
   startReturn() {
     this.inputX = this.inputZ = false;
     this.zQueued = false;
-    this.setPhase(this.pos.y < this.homeY - 0.01 ? PHASE.RETURN_UP : PHASE.RETURN_Z);
-  }
-
-  // 判定を確定して止める（上がりきる前に はずれ／獲得 が決まったとき）
-  finish() {
-    this.vel.y = 0;
-    this.setPhase(PHASE.DONE);
+    this.setPhase(PHASE.RETURN_Z);
   }
 
   // 目標までの残り距離から、減速が間に合う速さ（向き付き）を出す
@@ -156,15 +148,6 @@ export class Arm {
         break;
       case PHASE.JUDGE:
         if (this.timer >= p.judgeTime) this.setPhase(PHASE.DONE);
-        break;
-      case PHASE.RETURN_UP:
-        // 判定で止まった高さから上まで上がる
-        this.vel.y = this.smooth(p.ascendSpeed, this.homeY - this.pos.y, this.timer);
-        if (this.pos.y + this.vel.y * dt >= this.homeY - 0.01) {
-          this.pos.y = this.homeY;
-          this.vel.y = 0;
-          this.setPhase(PHASE.RETURN_Z);
-        }
         break;
       case PHASE.RETURN_Z:
         // 手前（zFront）へ。止まり際は減速して目標でぴったり止まる

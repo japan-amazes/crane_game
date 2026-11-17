@@ -49,7 +49,6 @@ export function buildRound(RAPIER, preset) {
       if (arm.phase === PHASE.ASCEND || arm.phase === PHASE.JUDGE) {
         round.maxLift = Math.max(round.maxLift, machine.lifted());
       }
-      if (arm.phase === PHASE.ASCEND) earlyJudge();
     },
     swingNow() { return measureSwing(round); },
     // 失敗後に続ける：作り直さず、記録だけ消してアームを初期位置へ戻す（揺れ・板の位置はそのまま）
@@ -62,31 +61,7 @@ export function buildRound(RAPIER, preset) {
     }
   };
 
-  // 上がりきる前の判定
-  // はずれ：リングの一番下がフックの頂点より上に抜けていて、板も浮いていない（もう掛かりようがない）
-  // 獲得：板が判定の高さ以上に浮いた状態が WIN_HOLD 秒続いた
-  const MISS_MARGIN = 0.5;  // cm
-  const WIN_HOLD = 0.5;     // 秒
-  let winTimer = 0;
-  function earlyJudge() {
-    const lift = machine.lifted();
-    if (lift >= preset.board.liftJudge) {
-      winTimer += STEP;
-      if (winTimer >= WIN_HOLD) arm.finish();
-      return;
-    }
-    winTimer = 0;
-    if (lift > 0.3) return;
-    const c = ring.body.translation(), t = ring.top();
-    const ringLow = 2 * c.y - t.y - ring.tubeR;
-    let hookHigh = -Infinity;
-    for (const p of machine.hookLineWorld()) hookHigh = Math.max(hookHigh, p.y);
-    hookHigh += machine.rodR;
-    if (ringLow > hookHigh + MISS_MARGIN) arm.finish();
-  }
-
   arm.onPhase = (next) => {
-    if (next === PHASE.ASCEND) winTimer = 0;
     if (next === PHASE.MOVE_X) round.swing.x = measureSwing(round);
     if (next === PHASE.MOVE_Z) round.swing.z = measureSwing(round);
     if (next === PHASE.ASCEND) round.hookRecord = machine.measure(ring, ringAxis(ring));
@@ -168,14 +143,16 @@ async function boot() {
   let last = performance.now();
 
   // ---- カメラモード ----
-  // normal：ずっと正面 / zoom：移動中は正面、下降が始まったらフック付近の拡大に切り替え
+  // normal：ずっと正面 / zoom：移動中は正面、下降が始まったらフック付近の拡大に切り替え、上昇が始まったら正面へ戻す
   const CAM_KEY = 'crane.cameraMode.v1';
   let camMode = 'normal';
   try { camMode = localStorage.getItem(CAM_KEY) === 'zoom' ? 'zoom' : 'normal'; } catch { /* 保存できない環境 */ }
   const ZOOM_DELAY = 1.0;   // 下降が始まってから拡大に切り替えるまで（秒）
   const ZOOM_MOVE = 0.8;    // 切り替えにかける時間（秒）
+  const UNZOOM_DELAY = 1.0; // 上昇が始まってから正面へ戻すまで（秒）
   let zoomAt = null;        // 拡大に切り替える予定時刻（performance.now の値）
   let zoomed = false;
+  let unzoomAt = null;      // 正面へ戻す予定時刻
   function applyCamera(duration = 0) {
     const zoomNow = camMode === 'zoom' && zoomed;
     view.setView(zoomNow ? 'zoom' : 'front', duration);
@@ -195,6 +172,7 @@ async function boot() {
     showResult(null);
     setStatus();
     zoomAt = null;
+    unzoomAt = null;
     zoomed = false;
     applyCamera();
   }
@@ -204,6 +182,7 @@ async function boot() {
     if (round && round.result === 'lose') {
       showResult(null);
       zoomAt = null;
+      unzoomAt = null;
       zoomed = false;
       round.continueRound();
       applyCamera(0.5);
@@ -216,6 +195,7 @@ async function boot() {
   function onPhase(next) {
     setStatus();
     if (next === PHASE.DESCEND) zoomAt = performance.now() + ZOOM_DELAY * 1000;
+    if (next === PHASE.ASCEND) unzoomAt = performance.now() + UNZOOM_DELAY * 1000;
     if (next === PHASE.DESCEND) sound.sfx('descend');
     if (next === PHASE.ASCEND) sound.sfx('ascend');
     if (next === PHASE.DONE) sound.sfx(round.result === 'win' ? 'win' : 'lose');
@@ -235,7 +215,6 @@ async function boot() {
       hold: '下で待機中…',
       ascend: '引き上げ中…',
       judge: '判定中…',
-      returnUp: '初期位置に戻っています…',
       returnZ: '初期位置に戻っています…',
       returnX: '初期位置に戻っています…',
       done: ''
@@ -301,6 +280,15 @@ async function boot() {
       zoomAt = null;
       zoomed = true;
       if (camMode === 'zoom') applyCamera(ZOOM_MOVE);
+    }
+    // 上昇開始から UNZOOM_DELAY 秒たったら正面へ戻す
+    if (unzoomAt !== null && now >= unzoomAt) {
+      unzoomAt = null;
+      zoomAt = null;
+      if (zoomed) {
+        zoomed = false;
+        if (camMode === 'zoom') applyCamera(ZOOM_MOVE);
+      }
     }
     view.setGuide(debug.guide);
     // 物理の刻みの途中を補って描く（停止後は最新の状態をそのまま描く）

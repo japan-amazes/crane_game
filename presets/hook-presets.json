@@ -23,7 +23,7 @@
         "ascendSpeed": 6,
         "dropLimit": 17.1,
         "holdTime": 1.5,
-        "judgeTime": 0.5
+        "judgeTime": 1.5
       },
       "chain": {
         "length": 15,

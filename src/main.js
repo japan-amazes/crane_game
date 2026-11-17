@@ -100,6 +100,19 @@ export function buildRound(RAPIER, preset) {
   return round;
 }
 
+// ステージの設定：基本設定に、そのステージの変更点（"arm.speedX": 8 のような形）を重ねる
+export function stagePreset(base, stages, i) {
+  const p = JSON.parse(JSON.stringify(base));
+  const ovr = (stages[i] && stages[i].overrides) || {};
+  for (const [path, v] of Object.entries(ovr)) {
+    const ks = path.split('.');
+    let o = p;
+    for (const k of ks.slice(0, -1)) o = o[k];
+    o[ks[ks.length - 1]] = v;
+  }
+  return p;
+}
+
 // 高さの目安（調整パネルに表示）：チェーン・リングの寸法と、アームの高さ・下降制限から計算
 export function heightInfo(preset) {
   const c = preset.chain, g = preset.ring, k = preset.connector, h = preset.hook;
@@ -132,18 +145,34 @@ async function boot() {
   const status = document.getElementById('status');
   status.textContent = '読み込み中…';
 
-  const [RAPIER, THREE, sceneMod, debugMod, soundMod, presetJson] = await Promise.all([
+  const [RAPIER, THREE, sceneMod, debugMod, soundMod, presetJson, stageJson] = await Promise.all([
     import(LIB.rapier).then(m => m.default || m),
     import(LIB.three),
     import('./render/scene.js'),
     import('./ui/debug.js'),
     import('./audio/sound.js'),
-    fetch('./presets/hook-presets.json').then(r => r.json())
+    fetch('./presets/hook-presets.json').then(r => r.json()),
+    fetch('./presets/stages.json').then(r => r.json())
   ]);
   await RAPIER.init();
 
+  // ---- ステージ ----
+  // ステージ1＝基本設定。以降は stages.json の変更点を基本設定に重ねる。獲得で次へ、はずれは同じステージで続ける
   const basePreset = presetJson.presets[0];
-  const debug = debugMod.createDebugPanel(document.getElementById('debug'), basePreset, () => restart(), heightInfo);
+  const stages = stageJson.stages;
+  const STAGE_KEY = 'crane.stage.v1';
+  let stageNo = 0;          // 0始まり
+  try { stageNo = Math.min(Math.max(0, Number(JSON.parse(localStorage.getItem(STAGE_KEY))?.stage) || 0), stages.length - 1); } catch { /* 保存できない環境 */ }
+  const stageLabel = document.getElementById('stageLabel');
+  function saveStage() { try { localStorage.setItem(STAGE_KEY, JSON.stringify({ stage: stageNo })); } catch { /* 保存できない環境 */ } }
+  const debug = debugMod.createDebugPanel(document.getElementById('debug'), stagePreset(basePreset, stages, stageNo), () => restart(), heightInfo,
+    () => goStage(0));
+  function goStage(i) {
+    stageNo = i;
+    saveStage();
+    debug.setBase(stagePreset(basePreset, stages, stageNo));
+    restart();
+  }
   const view = sceneMod.createScene(THREE, document.getElementById('view'));
 
   // ---- 音（BGM・効果音）----
@@ -191,6 +220,7 @@ async function boot() {
     round = buildRound(RAPIER, debug.currentPreset());
     round.onPhase = onPhase;
     view.setRound(round);
+    stageLabel.textContent = `STAGE ${stageNo + 1}`;
     acc = 0;
     showResult(null);
     setStatus();
@@ -200,8 +230,12 @@ async function boot() {
     applyCamera();
   }
 
-  // 「もう一度」：失敗なら続けて（初期位置へ戻る）、獲得なら新しい景品で作り直す
+  // 「もう一度」：失敗なら続けて（初期位置へ戻る）、獲得なら次のステージへ（最後なら1から）
   function again() {
+    if (round && round.result === 'win') {
+      goStage(stageNo + 1 < stages.length ? stageNo + 1 : 0);
+      return;
+    }
     if (round && round.result === 'lose') {
       showResult(null);
       zoomAt = null;
@@ -276,13 +310,16 @@ async function boot() {
     const hk = r.hookRecord;
     const hookText = !hk ? '—' : hk.inside ? 'フックの内側' : `フックの外側 ${hk.distance.toFixed(1)}cm`;
     const sw = s => s ? `横${s.tiltX.toFixed(1)}° 奥${s.tiltZ.toFixed(1)}° 速さ${s.speed.toFixed(1)}cm/s` : '—';
+    const last = stageNo + 1 >= stages.length;
+    const title = r.result !== 'win' ? 'はずれ' : last ? '全ステージクリア！' : `STAGE ${stageNo + 1} クリア！`;
+    const btn = r.result !== 'win' ? 'もう一度' : last ? 'ステージ1から' : '次のステージへ';
     resultEl.innerHTML = `
-      <div class="res-title ${r.result}">${r.result === 'win' ? '獲得！' : 'はずれ'}</div>
+      <div class="res-title ${r.result}">${title}</div>
       <div class="res-row">引き上げ直前：${hookText}</div>
       <div class="res-row">板の持ち上がり：${r.maxLift.toFixed(1)}cm</div>
       <div class="res-row">① 押した瞬間の揺れ：${sw(r.swing.x)}</div>
       <div class="res-row">② 押した瞬間の揺れ：${sw(r.swing.z)}</div>
-      <button id="btnAgain" class="big">もう一度</button>`;
+      <button id="btnAgain" class="big">${btn}</button>`;
     resultEl.hidden = false;
     document.getElementById('btnAgain').addEventListener('click', again);
   }

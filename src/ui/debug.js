@@ -54,93 +54,108 @@ const SCHEMA = [
   { path: 'field.tableTiltDeg', label: '台の傾き（＋＝奥が低い）', min: -10, max: 10, step: 0.5, unit: '°' }
 ];
 
-export function createDebugPanel(container, basePreset, onApply, heightInfo) {
+// basePreset：今のステージの設定（ステージが変わったら setBase で差し替える）
+// onStageReset：「ステージ1からやり直す」を押したとき
+export function createDebugPanel(container, basePreset, onApply, heightInfo, onStageReset) {
   let overrides = load();
-  const inputs = {};
+  let inputs = {};
   let guide = true;
+  let info;
 
-  container.innerHTML = '';
-  const head = el('div', 'dbg-head');
-  head.innerHTML = '<b>数値調整</b><span class="dbg-sub">開発用。変更は「適用」でやり直し</span>';
-  container.appendChild(head);
+  build();
 
-  // 高さの目安（チェーン・下降制限などを動かすとその場で再計算）
-  const info = el('div', 'dbg-info');
-  container.appendChild(info);
+  function build() {
+    inputs = {};
+    container.innerHTML = '';
+    const head = el('div', 'dbg-head');
+    head.innerHTML = '<b>数値調整</b><span class="dbg-sub">開発用。今のステージの設定を表示。変更は「適用」でやり直し（試し遊び用で、ステージの設定自体は変わらない。次のステージに進むと元に戻る）</span>';
+    container.appendChild(head);
 
-  const guideRow = el('label', 'dbg-row dbg-check');
-  guideRow.innerHTML = '<input type="checkbox" checked> 真下ガイドを表示';
-  guideRow.querySelector('input').addEventListener('change', e => { guide = e.target.checked; });
-  container.appendChild(guideRow);
+    // 高さの目安（チェーン・下降制限などを動かすとその場で再計算）
+    info = el('div', 'dbg-info');
+    container.appendChild(info);
 
-  for (const item of SCHEMA) {
-    if (item.group) {
-      const g = el('div', 'dbg-group');
-      g.textContent = item.group;
-      container.appendChild(g);
-      continue;
-    }
-    const row = el('div', 'dbg-row');
-    const label = el('div', 'dbg-label');
-    const value = el('span', 'dbg-value');
-    label.textContent = item.label;
-    label.appendChild(value);
-    row.appendChild(label);
+    const guideRow = el('label', 'dbg-row dbg-check');
+    guideRow.innerHTML = `<input type="checkbox"${guide ? ' checked' : ''}> 真下ガイドを表示`;
+    guideRow.querySelector('input').addEventListener('change', e => { guide = e.target.checked; });
+    container.appendChild(guideRow);
 
-    let input;
-    if (item.options) {
-      input = document.createElement('select');
-      for (const [k, v] of Object.entries(item.options)) {
-        const o = document.createElement('option');
-        o.value = k; o.textContent = v;
-        input.appendChild(o);
+    for (const item of SCHEMA) {
+      if (item.group) {
+        const g = el('div', 'dbg-group');
+        g.textContent = item.group;
+        container.appendChild(g);
+        continue;
       }
-    } else {
-      input = document.createElement('input');
-      input.type = 'range';
-      input.min = item.min; input.max = item.max; input.step = item.step;
-    }
-    const cur = valueOf(item.path);
-    input.value = cur;
-    const show = () => {
-      value.textContent = item.options ? '' : ` ${input.value}${item.unit ? ' ' + item.unit : ''}`;
-      row.classList.toggle('changed', String(input.value) !== String(getPath(basePreset, item.path)));
-    };
-    input.addEventListener('input', () => { show(); updateInfo(); });
-    show();
-    row.appendChild(input);
-    container.appendChild(row);
-    inputs[item.path] = { input, item };
-  }
+      const row = el('div', 'dbg-row');
+      const label = el('div', 'dbg-label');
+      const value = el('span', 'dbg-value');
+      label.textContent = item.label;
+      label.appendChild(value);
+      row.appendChild(label);
 
-  const btns = el('div', 'dbg-buttons');
-  const apply = el('button', 'big');
-  apply.textContent = '適用してやり直す';
-  apply.addEventListener('click', () => {
-    overrides = {};
-    for (const [path, { input, item }] of Object.entries(inputs)) {
-      const v = item.options ? input.value : Number(input.value);
-      if (String(v) !== String(getPath(basePreset, path))) overrides[path] = v;
+      let input;
+      if (item.options) {
+        input = document.createElement('select');
+        for (const [k, v] of Object.entries(item.options)) {
+          const o = document.createElement('option');
+          o.value = k; o.textContent = v;
+          input.appendChild(o);
+        }
+      } else {
+        input = document.createElement('input');
+        input.type = 'range';
+        input.min = item.min; input.max = item.max; input.step = item.step;
+      }
+      const cur = valueOf(item.path);
+      input.value = cur;
+      const show = () => {
+        value.textContent = item.options ? '' : ` ${input.value}${item.unit ? ' ' + item.unit : ''}`;
+        row.classList.toggle('changed', String(input.value) !== String(getPath(basePreset, item.path)));
+      };
+      input.addEventListener('input', () => { show(); updateInfo(); });
+      show();
+      row.appendChild(input);
+      container.appendChild(row);
+      inputs[item.path] = { input, item };
     }
-    save(overrides);
-    toggle(false);
-    onApply();
-  });
-  const reset = el('button', '');
-  reset.textContent = '初期値に戻す';
-  reset.addEventListener('click', () => {
-    overrides = {};
-    save(overrides);
-    for (const [path, { input }] of Object.entries(inputs)) {
-      input.value = getPath(basePreset, path);
-      input.dispatchEvent(new Event('input'));
+
+    const btns = el('div', 'dbg-buttons');
+    const apply = el('button', 'big');
+    apply.textContent = '適用してやり直す';
+    apply.addEventListener('click', () => {
+      overrides = {};
+      for (const [path, { input, item }] of Object.entries(inputs)) {
+        const v = item.options ? input.value : Number(input.value);
+        if (String(v) !== String(getPath(basePreset, path))) overrides[path] = v;
+      }
+      save(overrides);
+      toggle(false);
+      onApply();
+    });
+    const reset = el('button', '');
+    reset.textContent = '初期値に戻す';
+    reset.addEventListener('click', () => {
+      overrides = {};
+      save(overrides);
+      for (const [path, { input }] of Object.entries(inputs)) {
+        input.value = getPath(basePreset, path);
+        input.dispatchEvent(new Event('input'));
+      }
+    });
+    const close = el('button', '');
+    close.textContent = '閉じる';
+    close.addEventListener('click', () => toggle(false));
+    btns.append(apply, reset, close);
+    if (onStageReset) {
+      const stage1 = el('button', '');
+      stage1.textContent = 'ステージ1からやり直す';
+      stage1.addEventListener('click', () => { toggle(false); onStageReset(); });
+      btns.append(stage1);
     }
-  });
-  const close = el('button', '');
-  close.textContent = '閉じる';
-  close.addEventListener('click', () => toggle(false));
-  btns.append(apply, reset, close);
-  container.appendChild(btns);
+    container.appendChild(btns);
+    updateInfo();
+  }
 
   // 入力中の値で高さの目安を計算して表示
   function updateInfo() {
@@ -155,7 +170,6 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo) {
       : `板に着いて ${(-h.bottomAtStop).toFixed(1)}cm たるむ`;
     info.innerHTML = `待機中のリング下端：フックのてっぺんより ${h.gapAtHome.toFixed(1)}cm ${h.gapAtHome >= 0 ? '上' : '下（フックに当たる）'}<br>下がりきったとき：${stop}`;
   }
-  updateInfo();
 
   function valueOf(path) {
     return path in overrides ? overrides[path] : getPath(basePreset, path);
@@ -172,8 +186,17 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo) {
     container.hidden = !open;
   }
 
+  // ステージが変わったとき：表示する設定を差し替え、試しの変更は消す
+  function setBase(p) {
+    basePreset = p;
+    overrides = {};
+    save(overrides);
+    build();
+  }
+
   return {
     currentPreset,
+    setBase,
     toggle,
     get guide() { return guide; }
   };

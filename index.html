@@ -27,6 +27,9 @@
   #status { position: absolute; left: 0; right: 0; top: 0; padding: 10px 12px;
     font-size: 14px; color: var(--sub); background: linear-gradient(#0d1016cc, transparent); pointer-events: none; }
   #btnDebug { position: absolute; right: 10px; top: 36px; }
+  #stageLabel { position: absolute; left: 12px; top: 38px; padding: 4px 10px; border-radius: 8px;
+    font-size: 15px; font-weight: 800; letter-spacing: 0.06em; color: #ffd166; background: #171b24cc;
+    border: 1px solid #ffd16655; pointer-events: none; }
 
   /* 結果 */
   #result { position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 14px;
@@ -77,6 +80,7 @@
   <div id="stage">
     <canvas id="view"></canvas>
     <div id="status"></div>
+    <div id="stageLabel"></div>
     <button id="btnDebug">⚙ 調整</button>
     <div id="result" hidden></div>
   </div>

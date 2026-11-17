@@ -21,25 +21,25 @@
         "decel": 90,
         "descendSpeed": 9,
         "ascendSpeed": 6,
-        "dropLimit": 34.5,
-        "holdTime": 0.8,
+        "dropLimit": 17.1,
+        "holdTime": 1.5,
         "judgeTime": 1.5
       },
       "chain": {
-        "length": 31.6,
+        "length": 15,
         "pitch": 0.6,
         "linkRadius": 0.1,
-        "linearDamping": 0.3,
+        "linearDamping": 0,
         "rubDamping": 30,
         "maxBendDeg": 70,
         "twistStiffness": 400,
-        "twistDamping": 20
+        "twistDamping": 0
       },
       "ring": {
         "diameter": 5,
-        "thickness": 0.2,
+        "thickness": 0.8,
         "mass": 15,
-        "yawDeg": 0,
+        "yawDeg": 70,
         "friction": 0.15,
         "linearDamping": 0.1,
         "angularDamping": 0.4,
@@ -52,13 +52,13 @@
       },
       "hook": {
         "type": "standard",
-        "height": 4.5,
+        "height": 4,
         "thickness": 0.44,
         "tipBallRadius": 0,
-        "yawDeg": 0,
+        "yawDeg": 90,
         "offsetX": 0,
         "offsetZ": 0,
-        "friction": 0.5
+        "friction": 0
       },
       "board": {
         "width": 14,

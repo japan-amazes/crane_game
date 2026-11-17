@@ -49,6 +49,7 @@ export function buildRound(RAPIER, preset) {
       if (arm.phase === PHASE.ASCEND || arm.phase === PHASE.JUDGE) {
         round.maxLift = Math.max(round.maxLift, machine.lifted());
       }
+      if (arm.phase === PHASE.ASCEND) earlyJudge();
     },
     swingNow() { return measureSwing(round); },
     // 失敗後に続ける：作り直さず、記録だけ消してアームを初期位置へ戻す（揺れ・板の位置はそのまま）
@@ -61,7 +62,31 @@ export function buildRound(RAPIER, preset) {
     }
   };
 
+  // 上がりきる前の判定
+  // はずれ：リングの一番下がフックの頂点より上に抜けていて、板も浮いていない（もう掛かりようがない）
+  // 獲得：板が判定の高さ以上に浮いた状態が WIN_HOLD 秒続いた
+  const MISS_MARGIN = 0.5;  // cm
+  const WIN_HOLD = 0.5;     // 秒
+  let winTimer = 0;
+  function earlyJudge() {
+    const lift = machine.lifted();
+    if (lift >= preset.board.liftJudge) {
+      winTimer += STEP;
+      if (winTimer >= WIN_HOLD) arm.finish();
+      return;
+    }
+    winTimer = 0;
+    if (lift > 0.3) return;
+    const c = ring.body.translation(), t = ring.top();
+    const ringLow = 2 * c.y - t.y - ring.tubeR;
+    let hookHigh = -Infinity;
+    for (const p of machine.hookLineWorld()) hookHigh = Math.max(hookHigh, p.y);
+    hookHigh += machine.rodR;
+    if (ringLow > hookHigh + MISS_MARGIN) arm.finish();
+  }
+
   arm.onPhase = (next) => {
+    if (next === PHASE.ASCEND) winTimer = 0;
     if (next === PHASE.MOVE_X) round.swing.x = measureSwing(round);
     if (next === PHASE.MOVE_Z) round.swing.z = measureSwing(round);
     if (next === PHASE.ASCEND) round.hookRecord = machine.measure(ring, ringAxis(ring));
@@ -191,6 +216,7 @@ async function boot() {
       hold: '下で待機中…',
       ascend: '引き上げ中…',
       judge: '判定中…',
+      returnUp: '初期位置に戻っています…',
       returnZ: '初期位置に戻っています…',
       returnX: '初期位置に戻っています…',
       done: ''

@@ -29,6 +29,7 @@ export function createChain(RAPIER, world, preset, armBody, armPos) {
         .setLinearDamping(c.linearDamping)
         .setAngularDamping(c.angularDamping)
         .setCcdEnabled(true)
+        .setCanSleep(false)   // 揺れが小さくなった途中で急に止まらないように
     );
     world.createCollider(
       RAPIER.ColliderDesc.capsule(halfH, r)
@@ -52,7 +53,8 @@ export function createChain(RAPIER, world, preset, armBody, armPos) {
         wire: LINK_WIRE,
         pos: [0, segLen / 4 - k * pitch, 0],
         rotY: ((i * 2 + k) % 2) * Math.PI / 2,
-        color: 0xb8bcc6
+        color: 0xb8bcc6,
+        castShadow: false
       });
     }
     parts.push({ body, parts: vis });

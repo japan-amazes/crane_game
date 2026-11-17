@@ -186,11 +186,12 @@ async function boot() {
     // 結果が出たら物理計算を止めて、その瞬間の状態で静止させる
     // （板を吊ったまま計算を続けると、張ったチェーンが細かく震え出すため）
     const running = round.arm.phase !== PHASE.DONE;
-    while (running && acc >= STEP && n < 16) { round.step(); acc -= STEP; n++; }
+    while (running && acc >= STEP && n < 16) { view.savePrev(); round.step(); acc -= STEP; n++; }
     if (!running) acc = 0;
     if (n === 16) acc = 0; // 端末が重いときは遅れを捨てる
     view.setGuide(debug.guide);
-    view.render();
+    // 物理の刻みの途中を補って描く（停止後は最新の状態をそのまま描く）
+    view.render(running ? acc / STEP : 1);
     requestAnimationFrame(frame);
   }
 

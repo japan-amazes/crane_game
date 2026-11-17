@@ -43,8 +43,8 @@ export class Arm {
     this.visual = {
       body: this.body,
       parts: [
-        { type: 'box', size: [1.6, 1.2, 1.6], pos: [0, 0.6, 0], color: 0xc9ced8 },
-        { type: 'box', size: [0.3, 40, 0.3], pos: [0, 20.6, 0], color: 0x8a92a3 }
+        { type: 'box', size: [1.6, 1.2, 1.6], pos: [0, 0.6, 0], color: 0xc9ced8, castShadow: false },
+        { type: 'box', size: [0.3, 40, 0.3], pos: [0, 20.6, 0], color: 0x8a92a3, castShadow: false }
       ]
     };
   }

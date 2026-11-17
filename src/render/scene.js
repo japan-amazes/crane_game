@@ -79,7 +79,7 @@ export function createScene(THREE, canvas) {
     mesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
     if (p.quat) mesh.quaternion.set(p.quat.x, p.quat.y, p.quat.z, p.quat.w);
     if (p.rotY) mesh.rotation.y = p.rotY;
-    mesh.castShadow = true;
+    mesh.castShadow = p.castShadow !== false; // リング・チェーン・アームは影を落とさない（真下の目印を影として使う）
     mesh.receiveShadow = true;
     return mesh;
   }
@@ -126,7 +126,12 @@ export function createScene(THREE, canvas) {
       const group = new THREE.Group();
       for (const p of v.parts) group.add(buildPart(p));
       scene.add(group);
-      tracked.push({ body: v.body, group });
+      const t = v.body.translation(), q = v.body.rotation();
+      tracked.push({
+        body: v.body, group,
+        prevP: new THREE.Vector3(t.x, t.y, t.z),
+        prevQ: new THREE.Quaternion(q.x, q.y, q.z, q.w)
+      });
     }
     setView(viewName);
   }
@@ -185,17 +190,32 @@ export function createScene(THREE, canvas) {
     return onBoard ? t.y + b.height / 2 + 0.02 : 0.02;
   }
 
-  function render() {
-    resize();
+  // 物理を1ステップ進める直前に呼ぶ：今の位置を「1つ前」として覚える
+  function savePrev() {
     for (const t of tracked) {
-      const p = t.body.translation();
-      const q = t.body.rotation();
-      t.group.position.set(p.x, p.y, p.z);
-      t.group.quaternion.set(q.x, q.y, q.z, q.w);
+      const p = t.body.translation(), q = t.body.rotation();
+      t.prevP.set(p.x, p.y, p.z);
+      t.prevQ.set(q.x, q.y, q.z, q.w);
+    }
+  }
+
+  // alpha：1つ前の物理状態(0)〜最新の物理状態(1)の間のどこを描くか
+  // 画面の更新と物理の刻みがずれても、動きがカクつかないように間を補って描く
+  const tmpP = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
+  function render(alpha = 1) {
+    resize();
+    let armGroup = null;
+    for (const t of tracked) {
+      const p = t.body.translation(), q = t.body.rotation();
+      tmpP.set(p.x, p.y, p.z);
+      tmpQ.set(q.x, q.y, q.z, q.w);
+      t.group.position.lerpVectors(t.prevP, tmpP, alpha);
+      t.group.quaternion.slerpQuaternions(t.prevQ, tmpQ, alpha);
+      if (round && t.body === round.arm.body) armGroup = t.group;
     }
     if (round) {
       guide.visible = showGuide;
-      const a = round.arm.pos;
+      const a = armGroup ? armGroup.position : round.arm.pos;
       guide.position.set(a.x, guideHeight(a), a.z);
     }
     renderer.render(scene, camera);
@@ -203,6 +223,7 @@ export function createScene(THREE, canvas) {
 
   return {
     setRound,
+    savePrev,
     setView,
     toggleZoom,
     render,

@@ -23,6 +23,7 @@ export function createRing(RAPIER, world, preset, chain, armPos) {
       .setLinearDamping(g.linearDamping)
       .setAngularDamping(g.angularDamping)
       .setCcdEnabled(true)
+      .setCanSleep(false)     // 揺れが小さくなった途中で急に止まらないように
   );
 
   // 弦の長さ分のカプセルを円周に並べる
@@ -57,7 +58,7 @@ export function createRing(RAPIER, world, preset, chain, armPos) {
     twist: g.twistReturn || 0,
     visual: {
       body,
-      parts: [{ type: 'torus', radius: Rc, tube: tubeR, pos: [0, 0, 0], color: 0xc9ccd3 /* シルバー */ }]
+      parts: [{ type: 'torus', radius: Rc, tube: tubeR, pos: [0, 0, 0], color: 0xc9ccd3 /* シルバー */, castShadow: false }]
     }
   };
   return ring;

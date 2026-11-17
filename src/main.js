@@ -190,8 +190,9 @@ async function boot() {
     prize = prizeMod.drawPrize();
     view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
   }
+  // パネル（横30cm×縦28cm）と同じ縦横比の絵：上の帯にカテゴリーと★、真ん中に大きく景品、下に景品名
   function prizePanelCanvas(it) {
-    const W = 560, H = 420;
+    const W = 900, H = 840;
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const g = c.getContext('2d');
@@ -199,13 +200,14 @@ async function boot() {
     const grad = g.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, cat.color);
     g.fillStyle = grad; g.fillRect(0, 0, W, H);
-    g.fillStyle = cat.color; g.fillRect(0, 0, W, 54);
-    g.fillStyle = '#fff'; g.font = 'bold 30px sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
-    g.fillText(cat.name, 18, 28);
-    g.textAlign = 'right'; g.fillStyle = '#ffd166'; g.fillText('★'.repeat(it.rarity), W - 16, 28);
-    g.save(); g.translate(W / 2 - 130, 66); prizeMod.paintPrize(g, it, 260); g.restore();
-    g.fillStyle = '#1f2533'; g.textAlign = 'center'; g.font = 'bold 38px sans-serif';
-    g.fillText(it.name, W / 2, H - 40);
+    g.fillStyle = cat.color; g.fillRect(0, 0, W, 90);
+    g.fillStyle = '#fff'; g.font = 'bold 52px sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.fillText(cat.name, 30, 47);
+    g.textAlign = 'right'; g.fillStyle = '#ffd166'; g.fillText('★'.repeat(it.rarity), W - 26, 47);
+    const pic = 600;
+    g.save(); g.translate((W - pic) / 2, 100); prizeMod.paintPrize(g, it, pic); g.restore();
+    g.fillStyle = '#1f2533'; g.textAlign = 'center'; g.font = 'bold 72px sans-serif';
+    g.fillText(it.name, W / 2, H - 70, W - 40);
     return c;
   }
 

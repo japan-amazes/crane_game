@@ -90,8 +90,6 @@ export function createRing(RAPIER, world, preset, chain, armPos) {
     Rc,
     tubeR,
     innerR: Rc - tubeR,
-    targetYaw: yaw,
-    twist: g.twistReturn || 0,
     link,                                   // つなぎのリング
     linkSpan: 2 * kRc,                      // つなぎのリングの長さ（上端〜下端の中心線）
     visual: {
@@ -100,7 +98,8 @@ export function createRing(RAPIER, world, preset, chain, armPos) {
     },
     linkVisual: {
       body: link,
-      parts: [{ type: 'torus', radius: kRc, tube: kTube, pos: [0, 0, 0], color: 0xc9ccd3, castShadow: false }]
+      // 見た目は二重リング（キーリング型）：線を2周巻いた形
+      parts: [{ type: 'splitring', radius: kRc, wire: k.thickness / 4, gap: k.thickness / 2, pos: [0, 0, 0], color: 0xc9ccd3, castShadow: false }]
     }
   };
   return ring;
@@ -122,20 +121,3 @@ export function ringAxis(ring) {
   const q = ring.body.rotation();
   return rotateVec(q, { x: 0, y: 0, z: 1 });
 }
-
-// 鎖のねじれ戻し：リングの向き（水平面での回転）を初期角へ戻すトルク
-export function applyTwistReturn(ring, dt) {
-  if (!ring.twist) return;
-  const a = ringAxis(ring);
-  const h = Math.hypot(a.x, a.z);
-  if (h < 0.2) return; // 横倒し時は効かせない
-  const yawNow = Math.atan2(a.x, a.z);
-  let err = yawNow - ring.targetYaw;
-  // 穴の向きは表裏同じなので ±90° に折りたたむ
-  while (err > Math.PI / 2) err -= Math.PI;
-  while (err < -Math.PI / 2) err += Math.PI;
-  const w = ring.body.angvel();
-  const torque = (-ring.twist * err - ring.twist * 0.2 * w.y) * dt;
-  ring.body.applyTorqueImpulse({ x: 0, y: torque, z: 0 }, true);
-}
-

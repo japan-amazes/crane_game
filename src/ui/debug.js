@@ -13,12 +13,19 @@ const SCHEMA = [
   { path: 'arm.speedZ', label: '奥の速さ', min: 2, max: 15, step: 0.5, unit: 'cm/s' },
   { path: 'arm.accel', label: '動き出しの急さ', min: 10, max: 200, step: 5, unit: 'cm/s²' },
   { path: 'arm.decel', label: '止まるときの急さ', min: 10, max: 300, step: 5, unit: 'cm/s²' },
-  { path: 'arm.dropExtra', label: '下がる量（着地後のたるみ）', min: -2, max: 6, step: 0.25, unit: 'cm' },
+  { path: 'field.armHeight', label: 'アームの高さ（板の上面から）', min: 15, max: 40, step: 0.1, unit: 'cm' },
+  { path: 'arm.dropLimit', label: '下降制限（止まる高さ・板の上面から）', min: 5, max: 30, step: 0.1, unit: 'cm' },
   { path: 'arm.holdTime', label: '下での待ち時間', min: 0, max: 3, step: 0.1, unit: '秒' },
   { path: 'arm.ascendSpeed', label: '引き上げの速さ', min: 2, max: 15, step: 0.5, unit: 'cm/s' },
-  { group: '鎖' },
-  { path: 'chain.length', label: '鎖の長さ', min: 5, max: 25, step: 0.5, unit: 'cm' },
+  { group: 'チェーン' },
+  { path: 'chain.length', label: 'チェーンの長さ', min: 5, max: 25, step: 0.1, unit: 'cm' },
+  { path: 'chain.pitch', label: 'コマの長さ（ピッチ）', min: 0.4, max: 1.5, step: 0.05, unit: 'cm' },
   { path: 'chain.linearDamping', label: '揺れの残りにくさ', min: 0, max: 2, step: 0.05, unit: '' },
+  { path: 'chain.twistStiffness', label: 'ねじれの戻る強さ', min: 0, max: 2000, step: 20, unit: '' },
+  { path: 'chain.twistDamping', label: 'ねじれの止まりやすさ', min: 0, max: 150, step: 2, unit: '' },
+  { path: 'chain.rubDamping', label: 'コマ同士のこすれ', min: 0, max: 100, step: 2, unit: '' },
+  { path: 'chain.maxBendFlatDeg', label: '曲がる上限（平たい向き）', min: 10, max: 120, step: 5, unit: '°' },
+  { path: 'chain.maxBendEdgeDeg', label: '曲がる上限（厚みの向き）', min: 10, max: 120, step: 5, unit: '°' },
   { group: 'リング' },
   { path: 'ring.diameter', label: '直径（外径）', min: 3, max: 9, step: 0.1, unit: 'cm' },
   { path: 'ring.thickness', label: '太さ', min: 0.1, max: 1.2, step: 0.05, unit: 'cm' },
@@ -26,7 +33,7 @@ const SCHEMA = [
   { path: 'ring.yawDeg', label: '向き', min: 0, max: 180, step: 5, unit: '°' },
   { path: 'ring.friction', label: 'すべりにくさ', min: 0, max: 1.2, step: 0.05, unit: '' },
   { path: 'ring.angularDamping', label: '回りにくさ', min: 0, max: 5, step: 0.1, unit: '' },
-  { path: 'ring.twistReturn', label: '鎖のねじれ戻し', min: 0, max: 800, step: 20, unit: '' },
+  { path: 'ring.initialTwistDeg', label: '初期のねじれ', min: -180, max: 180, step: 5, unit: '°' },
   { group: 'つなぎのリング' },
   { path: 'connector.diameter', label: '直径（外径）', min: 0.6, max: 3, step: 0.1, unit: 'cm' },
   { path: 'connector.thickness', label: '太さ', min: 0.1, max: 0.6, step: 0.05, unit: 'cm' },
@@ -44,7 +51,7 @@ const SCHEMA = [
   { path: 'field.tableTiltDeg', label: '台の傾き（＋＝奥が低い）', min: -10, max: 10, step: 0.5, unit: '°' }
 ];
 
-export function createDebugPanel(container, basePreset, onApply) {
+export function createDebugPanel(container, basePreset, onApply, heightInfo) {
   let overrides = load();
   const inputs = {};
   let guide = true;
@@ -53,6 +60,10 @@ export function createDebugPanel(container, basePreset, onApply) {
   const head = el('div', 'dbg-head');
   head.innerHTML = '<b>数値調整</b><span class="dbg-sub">開発用。変更は「適用」でやり直し</span>';
   container.appendChild(head);
+
+  // 高さの目安（チェーン・下降制限などを動かすとその場で再計算）
+  const info = el('div', 'dbg-info');
+  container.appendChild(info);
 
   const guideRow = el('label', 'dbg-row dbg-check');
   guideRow.innerHTML = '<input type="checkbox" checked> 真下ガイドを表示';
@@ -92,7 +103,7 @@ export function createDebugPanel(container, basePreset, onApply) {
       value.textContent = item.options ? '' : ` ${input.value}${item.unit ? ' ' + item.unit : ''}`;
       row.classList.toggle('changed', String(input.value) !== String(getPath(basePreset, item.path)));
     };
-    input.addEventListener('input', show);
+    input.addEventListener('input', () => { show(); updateInfo(); });
     show();
     row.appendChild(input);
     container.appendChild(row);
@@ -127,6 +138,21 @@ export function createDebugPanel(container, basePreset, onApply) {
   close.addEventListener('click', () => toggle(false));
   btns.append(apply, reset, close);
   container.appendChild(btns);
+
+  // 入力中の値で高さの目安を計算して表示
+  function updateInfo() {
+    if (!heightInfo) return;
+    const p = JSON.parse(JSON.stringify(basePreset));
+    for (const [path, { input, item }] of Object.entries(inputs)) {
+      setPath(p, path, item.options ? input.value : Number(input.value));
+    }
+    const h = heightInfo(p);
+    const stop = h.bottomAtStop >= 0
+      ? `板から ${h.bottomAtStop.toFixed(1)}cm 上で止まる（板に届かない）`
+      : `板に着いて ${(-h.bottomAtStop).toFixed(1)}cm たるむ`;
+    info.innerHTML = `待機中のリング下端：フックのてっぺんより ${h.gapAtHome.toFixed(1)}cm ${h.gapAtHome >= 0 ? '上' : '下（フックに当たる）'}<br>下がりきったとき：${stop}`;
+  }
+  updateInfo();
 
   function valueOf(path) {
     return path in overrides ? overrides[path] : getPath(basePreset, path);

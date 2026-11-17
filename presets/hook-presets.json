@@ -9,7 +9,8 @@
       "field": {
         "xMin": -9, "xMax": 9,
         "zFront": 7, "zBack": -7,
-        "tableTiltDeg": 0
+        "tableTiltDeg": 0,
+        "armHeight": 25.4
       },
       "arm": {
         "speedX": 7,
@@ -18,18 +19,22 @@
         "decel": 90,
         "descendSpeed": 9,
         "ascendSpeed": 6,
-        "clearance": 3,
-        "dropExtra": 3,
+        "dropLimit": 14.9,
         "holdTime": 0.8,
         "judgeTime": 1.5
       },
       "chain": {
         "length": 12,
-        "links": 8,
-        "linkRadius": 0.12,
-        "linkMass": 1.5,
+        "pitch": 0.6,
+        "linkRadius": 0.1,
+        "massPerCm": 1.0,
         "linearDamping": 0.15,
-        "angularDamping": 5
+        "angularDamping": 5,
+        "twistStiffness": 400,
+        "twistDamping": 20,
+        "rubDamping": 30,
+        "maxBendFlatDeg": 70,
+        "maxBendEdgeDeg": 40
       },
       "ring": {
         "diameter": 5,
@@ -39,7 +44,7 @@
         "friction": 0.15,
         "linearDamping": 0.1,
         "angularDamping": 0.4,
-        "twistReturn": 0
+        "initialTwistDeg": 0
       },
       "connector": {
         "diameter": 1.3,

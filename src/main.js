@@ -5,8 +5,8 @@
 // =============================================================
 import { createWorld, createTable, STEP } from './physics/world.js';
 import { Arm, PHASE } from './physics/arm.js';
-import { createChain } from './physics/chain.js';
-import { createRing, ringAxis, applyTwistReturn } from './physics/ring.js';
+import { createChain, createChainDynamics } from './physics/chain.js';
+import { createRing, ringAxis } from './physics/ring.js';
 import { createHookMachine } from './machines/hook.js';
 
 const LIB = {
@@ -23,20 +23,18 @@ export function buildRound(RAPIER, preset) {
   const machine = createHookMachine(RAPIER, world, preset);
   const g = preset.ring;
 
-  // 待機時：リング下端が「フック頂点＋clearance」の高さに来るアーム位置
-  const ringBottomHome = machine.boardTop + machine.hookTop + preset.arm.clearance;
-  const k = preset.connector;
-  const linkSpan = k.diameter - k.thickness;  // つなぎのリングの長さ（中心線）
-  const homeY = ringBottomHome + preset.chain.length + linkSpan + g.diameter - g.thickness / 2;
-  // 下降：リング下端が板上面に着き、さらに dropExtra だけ鎖がたるむ所まで
-  const bottomY = homeY - (machine.hookTop + preset.arm.clearance + preset.arm.dropExtra);
+  // 高さは実機と同じ考え方：アームの高さ（固定）＋下降制限（止まる高さ）で決まり、
+  // チェーンの長さでリングとフックの距離・着地したときのたるみが変わる
+  const homeY = machine.boardTop + preset.field.armHeight;
+  const bottomY = machine.boardTop + preset.arm.dropLimit;
 
   const arm = new Arm(RAPIER, world, preset, homeY, bottomY);
   const chain = createChain(RAPIER, world, preset, arm.body, arm.pos);
   const ring = createRing(RAPIER, world, preset, chain, arm.pos);
+  const chainDyn = createChainDynamics(chain, ring.link, ring.body, preset);
 
   const round = {
-    world, arm, chain, ring, machine, preset,
+    world, arm, chain, ring, machine, preset, chainDyn,
     swing: {},        // ①②を押した瞬間の揺れ
     hookRecord: null, // 引き上げ直前のフックとの位置関係
     result: null,     // 'win' | 'lose'
@@ -44,7 +42,7 @@ export function buildRound(RAPIER, preset) {
     visuals: [table.visual, machine.visual, arm.visual, ...chain.visuals, ring.linkVisual, ring.visual],
     step() {
       arm.update(STEP);
-      applyTwistReturn(ring, STEP);
+      chainDyn.step(STEP);
       machine.dampHanging(ring, STEP, preset.board.hangDamping ?? 40);
       world.step();
       if (arm.phase === PHASE.ASCEND || arm.phase === PHASE.JUDGE) {
@@ -65,8 +63,21 @@ export function buildRound(RAPIER, preset) {
   };
 
   // 生成直後の揺れを落ち着かせる（1秒分）
-  for (let i = 0; i < 240; i++) { applyTwistReturn(ring, STEP); world.step(); }
+  // （初期のねじれは残したまま、振り子の揺れだけ落ち着かせる）
+  for (let i = 0; i < 240; i++) world.step();
   return round;
+}
+
+// 高さの目安（調整パネルに表示）：チェーン・リングの寸法と、アームの高さ・下降制限から計算
+export function heightInfo(preset) {
+  const c = preset.chain, g = preset.ring, k = preset.connector, h = preset.hook;
+  const n = Math.max(2, Math.round(c.length / c.pitch));
+  const chainLen = (c.length / n) * n;
+  const hang = chainLen + (k.diameter - k.thickness) + g.diameter - g.thickness / 2; // アーム〜リング下端
+  return {
+    gapAtHome: preset.field.armHeight - hang - h.height,   // 待機中：リング下端 − フック頂点
+    bottomAtStop: preset.arm.dropLimit - hang              // 下がりきったとき：リング下端の板からの高さ（負＝たるみ）
+  };
 }
 
 // リングの揺れ：吊り元から見た傾き（度）と動きの速さ（cm/s）
@@ -99,7 +110,7 @@ async function boot() {
   await RAPIER.init();
 
   const basePreset = presetJson.presets[0];
-  const debug = debugMod.createDebugPanel(document.getElementById('debug'), basePreset, () => restart());
+  const debug = debugMod.createDebugPanel(document.getElementById('debug'), basePreset, () => restart(), heightInfo);
   const view = sceneMod.createScene(THREE, document.getElementById('view'));
 
   let round = null;

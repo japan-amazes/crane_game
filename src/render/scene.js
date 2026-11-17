@@ -69,7 +69,9 @@ export function createScene(THREE, canvas) {
     else if (p.type === 'capsule') geo = new THREE.CapsuleGeometry(p.radius, p.halfHeight * 2, 6, 12);
     else if (p.type === 'ball') geo = new THREE.SphereGeometry(p.radius, 16, 12);
     else if (p.type === 'torus') geo = new THREE.TorusGeometry(p.radius, p.tube, 12, 40);
-    else if (p.type === 'chainlink') geo = chainLinkGeometry(p.length, p.width, p.wire);
+    else if (p.type === 'chainlink') geo = chainLinkGeometry(p.length, p.width, p.wire, 0);
+    else if (p.type === 'curblink') geo = chainLinkGeometry(p.length, p.width, p.wire, p.twist);
+    else if (p.type === 'splitring') geo = splitRingGeometry(p.radius, p.wire, p.gap);
     const mat = new THREE.MeshStandardMaterial({
       color: p.color,
       metalness: p.type === 'box' ? 0.1 : 0.6,
@@ -86,8 +88,9 @@ export function createScene(THREE, canvas) {
 
   // チェーンの輪：縦長の楕円（直線＋半円2つ）に沿った管。同じ寸法は1回だけ作って使い回す
   const linkGeoCache = new Map();
-  function chainLinkGeometry(length, width, wire) {
-    const key = `${length}|${width}|${wire}`;
+  // twist：コマ自体のねじれ（上端と下端で何ラジアン回っているか。0ならふつうの楕円の輪）
+  function chainLinkGeometry(length, width, wire, twist) {
+    const key = `${length}|${width}|${wire}|${twist}`;
     if (linkGeoCache.has(key)) return linkGeoCache.get(key);
     const rr = width / 2;
     const straight = Math.max(length - width, 0);
@@ -101,8 +104,33 @@ export function createScene(THREE, canvas) {
       const t = Math.PI + Math.PI * i / N;
       pts.push(new THREE.Vector3(rr * Math.cos(t), -straight / 2 + rr * Math.sin(t), 0));
     }
+    // ねじれ：高さに応じて縦軸まわりに回す（キヘイのような平たくねじれたコマ）
+    if (twist) {
+      for (const p of pts) {
+        const a = twist * (p.y / length);
+        const x = p.x * Math.cos(a), z = p.x * Math.sin(a);
+        p.x = x; p.z = z;
+      }
+    }
     const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
     const geo = new THREE.TubeGeometry(curve, 48, wire, 6, true);
+    geo.userData.shared = true;
+    linkGeoCache.set(key, geo);
+    return geo;
+  }
+
+  // 二重リング（キーリング型）：線をらせん状に2周巻いた形。gap＝2周の間隔
+  function splitRingGeometry(radius, wire, gap) {
+    const key = `split|${radius}|${wire}|${gap}`;
+    if (linkGeoCache.has(key)) return linkGeoCache.get(key);
+    const pts = [];
+    const N = 64;
+    for (let i = 0; i <= N; i++) {
+      const t = (i / N) * Math.PI * 4;              // 2周
+      pts.push(new THREE.Vector3(radius * Math.cos(t), radius * Math.sin(t), (i / N - 0.5) * gap));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts, false);
+    const geo = new THREE.TubeGeometry(curve, 96, wire, 6, false);
     geo.userData.shared = true;
     linkGeoCache.set(key, geo);
     return geo;

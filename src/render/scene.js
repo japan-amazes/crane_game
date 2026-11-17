@@ -174,16 +174,19 @@ export function createScene(THREE, canvas) {
       const hfov = 2 * Math.atan(Math.tan(fovDeg * Math.PI / 360) * aspect);
       return (width / 2) / Math.tan(hfov / 2);
     };
+    // 正面・横から：板からアームまでの高さ全体が入るように引く
+    const top = round.preset.field.armHeight + 2;
+    const fitH = (height, fovDeg) => (height / 2) / Math.tan(fovDeg * Math.PI / 360);
     if (name === 'front') {
       camera.fov = 50;
-      const d = Math.max(40, fit(30, 50));
-      camera.position.set(0, 14 + d * 0.3, d);
-      camera.lookAt(0, 9, 0);
+      const d = Math.max(40, fit(30, 50), fitH(top * 1.35, 50));
+      camera.position.set(0, top * 0.6, d);
+      camera.lookAt(0, top * 0.5, 0);
     } else if (name === 'side') {
       camera.fov = 50;
-      const d = Math.max(40, fit(26, 50));
-      camera.position.set(d, 14 + d * 0.3, 0);
-      camera.lookAt(0, 9, 0);
+      const d = Math.max(40, fit(26, 50), fitH(top * 1.35, 50));
+      camera.position.set(d, top * 0.6, 0);
+      camera.lookAt(0, top * 0.5, 0);
     } else if (name === 'zoom') {
       camera.fov = 40;
       const d = Math.max(16, fit(11, 40));

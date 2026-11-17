@@ -126,6 +126,10 @@ export function createHookMachine(RAPIER, world, preset) {
     lifted() {
       return board.translation().y - initialY;
     },
+    // チェーンの当たり判定用：フックの中心線（ワールド座標の点列）
+    hookLineWorld() {
+      return pts.map(p => toWorld(board, p));
+    },
     // 吊り下げ中の接触部の減衰（摩擦によるエネルギー損失の代わり）
     // 板を吊ると軽いリングが鎖と板の間で張られて細かく震える。実物は接触部の摩擦ですぐ収まるので、
     // リングと板の相対速度だけを弱める（全体の揺れ＝振り子の動きはそのまま残る）

@@ -7,10 +7,12 @@
       "id": "standard",
       "name": "標準フック（仮）",
       "field": {
-        "xMin": -9, "xMax": 9,
-        "zFront": 7, "zBack": -7,
+        "xMin": -9,
+        "xMax": 9,
+        "zFront": 7,
+        "zBack": -7,
         "tableTiltDeg": 0,
-        "armHeight": 25.4
+        "armHeight": 45
       },
       "arm": {
         "speedX": 7,
@@ -19,22 +21,19 @@
         "decel": 90,
         "descendSpeed": 9,
         "ascendSpeed": 6,
-        "dropLimit": 14.9,
+        "dropLimit": 34.5,
         "holdTime": 0.8,
         "judgeTime": 1.5
       },
       "chain": {
-        "length": 12,
+        "length": 31.6,
         "pitch": 0.6,
         "linkRadius": 0.1,
-        "massPerCm": 1.0,
-        "linearDamping": 0.15,
-        "angularDamping": 5,
-        "twistStiffness": 400,
-        "twistDamping": 20,
+        "linearDamping": 0.3,
         "rubDamping": 30,
-        "maxBendFlatDeg": 70,
-        "maxBendEdgeDeg": 40
+        "maxBendDeg": 70,
+        "twistStiffness": 400,
+        "twistDamping": 20
       },
       "ring": {
         "diameter": 5,
@@ -71,9 +70,18 @@
         "hangDamping": 150
       },
       "materials": {
-        "plastic": { "friction": 0.2, "restitution": 0.15 },
-        "metal": { "friction": 0.2, "restitution": 0.25 },
-        "wood": { "friction": 0.5, "restitution": 0.1 }
+        "plastic": {
+          "friction": 0.2,
+          "restitution": 0.15
+        },
+        "metal": {
+          "friction": 0.2,
+          "restitution": 0.25
+        },
+        "wood": {
+          "friction": 0.5,
+          "restitution": 0.1
+        }
       }
     }
   ]

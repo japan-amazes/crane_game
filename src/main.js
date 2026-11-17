@@ -29,9 +29,9 @@ export function buildRound(RAPIER, preset) {
   const bottomY = machine.boardTop + preset.arm.dropLimit;
 
   const arm = new Arm(RAPIER, world, preset, homeY, bottomY);
-  const chain = createChain(RAPIER, world, preset, arm.body, arm.pos);
-  const ring = createRing(RAPIER, world, preset, chain, arm.pos);
-  const chainDyn = createChainDynamics(chain, ring.link, ring.body, preset);
+  const chain = createChain(preset, arm.pos);
+  const ring = createRing(RAPIER, world, preset, chain, arm.pos, arm.body);
+  const chainDyn = createChainDynamics(chain, ring.body, preset);
 
   const round = {
     world, arm, chain, ring, machine, preset, chainDyn,
@@ -39,12 +39,13 @@ export function buildRound(RAPIER, preset) {
     hookRecord: null, // 引き上げ直前のフックとの位置関係
     result: null,     // 'win' | 'lose'
     maxLift: 0,
-    visuals: [table.visual, machine.visual, arm.visual, ...chain.visuals, ring.linkVisual, ring.visual],
+    visuals: [table.visual, machine.visual, arm.visual, ...chain.visuals, ring.visual],
     step() {
       arm.update(STEP);
       chainDyn.step(STEP);
       machine.dampHanging(ring, STEP, preset.board.hangDamping ?? 40);
       world.step();
+      chain.update(STEP, arm.pos, ring.top(), machine);
       if (arm.phase === PHASE.ASCEND || arm.phase === PHASE.JUDGE) {
         round.maxLift = Math.max(round.maxLift, machine.lifted());
       }
@@ -64,7 +65,7 @@ export function buildRound(RAPIER, preset) {
 
   // 生成直後の揺れを落ち着かせる（1秒分）
   // （初期のねじれは残したまま、振り子の揺れだけ落ち着かせる）
-  for (let i = 0; i < 240; i++) world.step();
+  for (let i = 0; i < 240; i++) { world.step(); chain.update(STEP, arm.pos, ring.top(), machine); }
   return round;
 }
 

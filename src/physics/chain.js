@@ -5,6 +5,10 @@
 // =============================================================
 import { GROUP, groups } from './world.js';
 
+// 見た目のチェーンの輪（cm）
+const LINK_WIDTH = 0.5;  // 輪の幅（中心線）
+const LINK_WIRE = 0.07;  // 輪の線の太さ（半径）
+
 export function createChain(RAPIER, world, preset, armBody, armPos) {
   const c = preset.chain;
   const n = Math.max(2, Math.round(c.links));
@@ -37,10 +41,21 @@ export function createChain(RAPIER, world, preset, armBody, armPos) {
     world.createImpulseJoint(joint, prev, body, true);
 
     links.push(body);
-    parts.push({
-      body,
-      parts: [{ type: 'capsule', radius: r, halfHeight: halfH, pos: [0, 0, 0], color: 0xb8bcc6 }]
-    });
+    // 見た目：物理の1コマにつき楕円の輪を2つ描き、輪の向きを90°ずつ交互に変える（実機のチェーン風）
+    const pitch = segLen / 2;
+    const vis = [];
+    for (let k = 0; k < 2; k++) {
+      vis.push({
+        type: 'chainlink',
+        length: pitch + LINK_WIDTH * 0.6,
+        width: LINK_WIDTH,
+        wire: LINK_WIRE,
+        pos: [0, segLen / 4 - k * pitch, 0],
+        rotY: ((i * 2 + k) % 2) * Math.PI / 2,
+        color: 0xb8bcc6
+      });
+    }
+    parts.push({ body, parts: vis });
     prev = body;
     prevAnchor = { x: 0, y: -segLen / 2, z: 0 };
   }

@@ -43,6 +43,7 @@ export function buildRound(RAPIER, preset) {
     step() {
       arm.update(STEP);
       applyTwistReturn(ring, STEP);
+      machine.dampHanging(ring, STEP, preset.board.hangDamping ?? 40);
       world.step();
       if (arm.phase === PHASE.ASCEND || arm.phase === PHASE.JUDGE) {
         round.maxLift = Math.max(round.maxLift, machine.lifted());

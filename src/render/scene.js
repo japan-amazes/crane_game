@@ -44,24 +44,50 @@ export function createScene(THREE, canvas) {
     else if (p.type === 'capsule') geo = new THREE.CapsuleGeometry(p.radius, p.halfHeight * 2, 6, 12);
     else if (p.type === 'ball') geo = new THREE.SphereGeometry(p.radius, 16, 12);
     else if (p.type === 'torus') geo = new THREE.TorusGeometry(p.radius, p.tube, 12, 40);
+    else if (p.type === 'chainlink') geo = chainLinkGeometry(p.length, p.width, p.wire);
     const mat = new THREE.MeshStandardMaterial({
       color: p.color,
-      metalness: p.type === 'torus' || p.type === 'capsule' ? 0.6 : 0.1,
+      metalness: p.type === 'box' || p.type === 'ball' ? 0.1 : 0.6,
       roughness: 0.45
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
     if (p.quat) mesh.quaternion.set(p.quat.x, p.quat.y, p.quat.z, p.quat.w);
+    if (p.rotY) mesh.rotation.y = p.rotY;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     return mesh;
+  }
+
+  // チェーンの輪：縦長の楕円（直線＋半円2つ）に沿った管。同じ寸法は1回だけ作って使い回す
+  const linkGeoCache = new Map();
+  function chainLinkGeometry(length, width, wire) {
+    const key = `${length}|${width}|${wire}`;
+    if (linkGeoCache.has(key)) return linkGeoCache.get(key);
+    const rr = width / 2;
+    const straight = Math.max(length - width, 0);
+    const pts = [];
+    const N = 10;
+    for (let i = 0; i <= N; i++) {           // 上の半円
+      const t = Math.PI * i / N;
+      pts.push(new THREE.Vector3(rr * Math.cos(t), straight / 2 + rr * Math.sin(t), 0));
+    }
+    for (let i = 0; i <= N; i++) {           // 下の半円
+      const t = Math.PI + Math.PI * i / N;
+      pts.push(new THREE.Vector3(rr * Math.cos(t), -straight / 2 + rr * Math.sin(t), 0));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+    const geo = new THREE.TubeGeometry(curve, 48, wire, 6, true);
+    geo.userData.shared = true;
+    linkGeoCache.set(key, geo);
+    return geo;
   }
 
   function clear() {
     for (const t of tracked) {
       scene.remove(t.group);
       t.group.traverse(o => {
-        if (o.geometry) o.geometry.dispose();
+        if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
         if (o.material) o.material.dispose();
       });
     }

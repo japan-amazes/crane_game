@@ -118,6 +118,20 @@ export function createHookMachine(RAPIER, world, preset) {
     lifted() {
       return board.translation().y - initialY;
     },
+    // 吊り下げ中の接触部の減衰（摩擦によるエネルギー損失の代わり）
+    // 板を吊ると軽いリングが鎖と板の間で張られて細かく震える。実物は接触部の摩擦ですぐ収まるので、
+    // リングと板の相対速度だけを弱める（全体の揺れ＝振り子の動きはそのまま残る）
+    dampHanging(ring, dt, rate) {
+      if (board.translation().y - initialY < 0.2) return; // 板が浮いていないときは何もしない
+      const vr = ring.body.linvel(), vb = board.linvel();
+      const mr = ring.body.mass(), mb = board.mass();
+      const k = Math.min(rate * dt, 1);
+      // 相対速度を k の割合だけ減らす（運動量は保存）
+      const mu = mr * mb / (mr + mb);
+      const ix = -k * mu * (vr.x - vb.x), iy = -k * mu * (vr.y - vb.y), iz = -k * mu * (vr.z - vb.z);
+      ring.body.applyImpulse({ x: ix, y: iy, z: iz }, true);
+      board.applyImpulse({ x: -ix, y: -iy, z: -iz }, true);
+    },
     // リングとフックの位置関係（引き上げ直前に呼ぶ）
     measure(ring, axis) {
       const c = ring.body.translation();

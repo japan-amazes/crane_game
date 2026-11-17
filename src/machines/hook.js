@@ -11,6 +11,8 @@ import { GROUP, groups, quatAxisAngle, rotateVec } from '../physics/world.js';
 
 // 写真の中心線（根元=原点、横=手前方向が＋、縦=上が＋）。単位は「フック全高=1」
 // 元画像の座標（根元 x=445,y=875、外側てっぺん y=55、全高820px）から換算
+const BRASS = 0xc8a046; // フックの色（真鍮）
+
 const QUESTION_SHAPE = [
   [445, 875], [445, 800], [455, 730], [490, 670], [545, 625], [610, 585],
   [660, 545], [695, 490], [715, 420], [718, 350], [705, 280], [675, 215],
@@ -78,7 +80,7 @@ export function createHookMachine(RAPIER, world, preset) {
         .setCollisionGroups(hookGroups),
       board
     );
-    parts.push({ type: 'capsule', radius: rodR, halfHeight: len / 2, pos: [mid.x, mid.y, mid.z], quat: q, color: 0xe8e8ee });
+    parts.push({ type: 'capsule', radius: rodR, halfHeight: len / 2, pos: [mid.x, mid.y, mid.z], quat: q, color: BRASS });
   }
 
   // 玉付き（先端に球）
@@ -92,7 +94,7 @@ export function createHookMachine(RAPIER, world, preset) {
         .setCollisionGroups(hookGroups),
       board
     );
-    parts.push({ type: 'ball', radius: h.tipBallRadius, pos: [tip.x, tip.y, tip.z], color: 0xe8e8ee });
+    parts.push({ type: 'ball', radius: h.tipBallRadius, pos: [tip.x, tip.y, tip.z], color: BRASS });
   }
 
   // 記録用：フック中心線を細かく分割した点（板ローカル）

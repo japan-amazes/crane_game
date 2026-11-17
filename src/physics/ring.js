@@ -57,7 +57,7 @@ export function createRing(RAPIER, world, preset, chain, armPos) {
     twist: g.twistReturn || 0,
     visual: {
       body,
-      parts: [{ type: 'torus', radius: Rc, tube: tubeR, pos: [0, 0, 0], color: 0xf2c14e }]
+      parts: [{ type: 'torus', radius: Rc, tube: tubeR, pos: [0, 0, 0], color: 0xc9ccd3 /* シルバー */ }]
     }
   };
   return ring;

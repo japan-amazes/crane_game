@@ -24,14 +24,39 @@ export function createScene(THREE, canvas) {
   sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
   scene.add(sun);
 
-  // 真下ガイド（アームの真下に点を表示）
+  // 真下ガイド：アームの真下に、周りをぼかした黒い丸（影のような目印）を表示
+  const GUIDE_SIZE = 5;      // 直径（cm）。リングの直径くらい
   const guide = new THREE.Mesh(
-    new THREE.RingGeometry(0.35, 0.5, 24),
-    new THREE.MeshBasicMaterial({ color: 0xff5577, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(GUIDE_SIZE, GUIDE_SIZE),
+    new THREE.MeshBasicMaterial({
+      map: softDotTexture(),
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2
+    })
   );
   guide.rotation.x = -Math.PI / 2;
   guide.visible = false;
   scene.add(guide);
+
+  // 中心が黒く、外側に向かって透明になる丸い画像
+  function softDotTexture() {
+    const size = 128;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    grad.addColorStop(0, 'rgba(0,0,0,1)');
+    grad.addColorStop(0.35, 'rgba(0,0,0,0.85)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, size, size);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
 
   let tracked = [];   // { body, group }
   let round = null;
@@ -47,7 +72,7 @@ export function createScene(THREE, canvas) {
     else if (p.type === 'chainlink') geo = chainLinkGeometry(p.length, p.width, p.wire);
     const mat = new THREE.MeshStandardMaterial({
       color: p.color,
-      metalness: p.type === 'box' || p.type === 'ball' ? 0.1 : 0.6,
+      metalness: p.type === 'box' ? 0.1 : 0.6,
       roughness: 0.45
     });
     const mesh = new THREE.Mesh(geo, mat);
@@ -152,6 +177,14 @@ export function createScene(THREE, canvas) {
     }
   }
 
+  // 目印を置く高さ：アームの真下が板の上なら板の上面、外なら台の床面
+  function guideHeight(a) {
+    const b = round.preset.board;
+    const t = round.machine.board.translation();
+    const onBoard = Math.abs(a.x - t.x) <= b.width / 2 && Math.abs(a.z - t.z) <= b.depth / 2;
+    return onBoard ? t.y + b.height / 2 + 0.02 : 0.02;
+  }
+
   function render() {
     resize();
     for (const t of tracked) {
@@ -163,7 +196,7 @@ export function createScene(THREE, canvas) {
     if (round) {
       guide.visible = showGuide;
       const a = round.arm.pos;
-      guide.position.set(a.x, round.machine.boardTop + 0.02, a.z);
+      guide.position.set(a.x, guideHeight(a), a.z);
     }
     renderer.render(scene, camera);
   }

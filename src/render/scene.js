@@ -212,7 +212,9 @@ export function createScene(THREE, canvas) {
         look: new THREE.Vector3(h.x, h.y + 1.5, h.z + 0.8)
       };
     }
-    const d = Math.max(40, fit(30, 50), fitH(top * 1.35, 50));
+    // 横は移動範囲（左端〜右端）＋リングが揺れる分も入るように。初期位置は手前なので、手前の位置で幅が収まる距離にする
+    const f = round.preset.field;
+    const d = Math.max(40, fit(Math.max(30, f.xMax - f.xMin + 8), 50) + Math.max(0, f.zFront), fitH(top * 1.35, 50));
     return { fov: 50, pos: new THREE.Vector3(0, top * 0.6, d), look: new THREE.Vector3(0, top * 0.5, 0) };
   }
 

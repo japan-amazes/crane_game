@@ -65,6 +65,8 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
   let overrides = load();
   let inputs = {};
   let guide = true;
+  let unlimited = false;   // クレジット無制限（テスト用）
+  try { unlimited = localStorage.getItem('crane.debug.unlimited') === '1'; } catch { /* 保存できない環境 */ }
   let info;
 
   build();
@@ -84,6 +86,14 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     guideRow.innerHTML = `<input type="checkbox"${guide ? ' checked' : ''}> 真下ガイドを表示`;
     guideRow.querySelector('input').addEventListener('change', e => { guide = e.target.checked; });
     container.appendChild(guideRow);
+
+    const unlRow = el('label', 'dbg-row dbg-check');
+    unlRow.innerHTML = `<input type="checkbox"${unlimited ? ' checked' : ''}> クレジット無制限（テスト用）`;
+    unlRow.querySelector('input').addEventListener('change', e => {
+      unlimited = e.target.checked;
+      try { localStorage.setItem('crane.debug.unlimited', unlimited ? '1' : '0'); } catch { /* 保存できない環境 */ }
+    });
+    container.appendChild(unlRow);
 
     for (const item of SCHEMA) {
       if (item.group) {
@@ -203,7 +213,8 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     currentPreset,
     setBase,
     toggle,
-    get guide() { return guide; }
+    get guide() { return guide; },
+    get unlimited() { return unlimited; }
   };
 }
 

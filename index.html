@@ -56,10 +56,69 @@
   button { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 10px;
     border: 1px solid var(--line); background: #1f2532; color: var(--sub); }
   button.big { font-size: 16px; padding: 12px; background: var(--accent); color: #fff; border: none; font-weight: 700; }
-  #btnRetry { margin-top: 10px; width: 100%; }
+  .row3 { display: flex; gap: 6px; margin-top: 10px; }
+  .row3 button { flex: 1; }
   .sounds { display: flex; gap: 6px; margin-top: 8px; }
   .sounds button { flex: 1; font-size: 13px; padding: 6px 8px; }
   .sounds button.active { color: var(--text); }
+  #btnTicket.active { border-color: #ffd166; color: #ffd166; }
+  button:disabled { opacity: 0.4; }
+
+  /* クレジットなど（画面左上） */
+  #hud { position: absolute; left: 12px; top: 74px; display: flex; flex-direction: column; gap: 3px;
+    font-size: 12px; color: var(--sub); pointer-events: none; }
+  #hud span { background: #171b24cc; border-radius: 6px; padding: 2px 8px; align-self: flex-start; }
+  #hud b { color: var(--text); font-size: 14px; }
+
+  /* 結果の景品 */
+  .res-prize { display: flex; gap: 10px; align-items: center; margin: 4px 0 8px; padding: 8px; border-radius: 10px; background: #232a38; font-size: 14px; }
+  .res-new { color: #ffd166; font-weight: 700; }
+  .stars { color: #ffd166; letter-spacing: -1px; }
+  .stars .off { color: #555d6e; }
+  .res-btns { display: flex; gap: 8px; margin-top: 10px; }
+  .res-btns .big { flex: 2; }
+  .res-btns #btnSkip { flex: 1; }
+
+  /* モーダル（マイボックス・ステージ・広告） */
+  #modal { position: fixed; inset: 0; z-index: 20; background: #0009; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  #modal[hidden] { display: none; }
+  .m-card { width: 100%; max-width: 440px; max-height: 92dvh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+  .m-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 17px; }
+  .m-head .m-pt { margin-left: auto; font-size: 13px; color: var(--sub); }
+  .m-head .m-pt b { color: #ffd166; font-size: 16px; }
+  .m-x { margin-left: auto; font-size: 18px; padding: 2px 12px; }
+  .m-pt + .m-x { margin-left: 0; }
+  .m-tabs { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 10px; }
+  .m-tabs button { flex: 0 0 auto; font-size: 12px; padding: 6px 8px; border-color: var(--cat); }
+  .m-tabs button small { display: block; font-size: 11px; }
+  .m-tabs button.on { background: var(--cat); color: #10131a; font-weight: 700; }
+  .m-cat { border: 2px solid var(--cat); border-radius: 12px; padding: 10px; }
+  .m-cat-title { font-weight: 700; margin-bottom: 6px; }
+  .m-done { color: #ffd166; }
+  .m-bar { height: 8px; border-radius: 4px; background: #2a3140; overflow: hidden; margin-bottom: 10px; }
+  .m-bar i { display: block; height: 100%; background: var(--cat); }
+  .m-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .m-cell { position: relative; aspect-ratio: 3 / 4; border-radius: 10px; background: #232a38; border: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; text-align: center; }
+  .m-cell.got { background: linear-gradient(#ffffff, var(--cat)); border: 2px solid #fff; }
+  .m-cell.got .m-name { color: #1f2533; font-weight: 700; }
+  .m-star { position: absolute; top: 3px; font-size: 12px; }
+  .m-pic { height: 64px; display: flex; align-items: center; }
+  .m-name { font-size: 11px; color: var(--sub); line-height: 1.25; }
+  .m-num { position: absolute; right: 5px; bottom: 3px; font-size: 11px; color: #1f2533; font-weight: 700; }
+  .m-note { font-size: 11px; color: var(--sub); margin-top: 8px; line-height: 1.5; }
+  .m-ex { margin-top: 10px; padding: 10px; border-radius: 10px; background: #232a38; font-size: 14px; line-height: 1.6; }
+  .m-ex-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .m-ex-btns button { flex: 1; }
+  .m-sum { font-size: 13px; color: var(--sub); margin-bottom: 10px; line-height: 1.6; }
+  .m-front { width: 100%; margin-bottom: 12px; }
+  .m-sub { font-size: 13px; margin-bottom: 6px; }
+  .m-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .m-stages button.on { border-color: var(--accent); color: var(--text); }
+  .m-empty { color: var(--sub); font-size: 13px; }
+  .m-ad { height: 220px; border-radius: 12px; background: #232a38; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; color: var(--sub); }
+  .m-ad-t { font-size: 40px; font-weight: 800; color: var(--text); }
+  .m-ad .big { width: 60%; }
 
   /* 数値調整パネル */
   #debug { position: fixed; inset: 0; overflow-y: auto; background: #0d1016f5; padding: 14px 14px 40px; z-index: 10; }
@@ -84,6 +143,7 @@
     <div id="status"></div>
     <div id="stageLabel"></div>
     <button id="btnDebug">⚙ 調整</button>
+    <div id="hud"></div>
     <div id="result" hidden></div>
   </div>
   <div id="controls">
@@ -96,14 +156,20 @@
       <button id="btnX" class="hold">①</button>
       <button id="btnZ" class="hold" disabled>②</button>
     </div>
-    <button id="btnRetry">最初から</button>
+    <div class="row3">
+      <button id="btnRetry">最初から</button>
+      <button id="btnStages">ステージ</button>
+      <button id="btnBox">マイボックス</button>
+    </div>
     <div class="sounds">
+      <button id="btnTicket">確定チケット</button>
       <button id="btnBgm">♪ BGM</button>
       <button id="btnSfx">効果音</button>
     </div>
   </div>
 </div>
 <div id="debug" hidden></div>
+<div id="modal" hidden></div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

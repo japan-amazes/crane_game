@@ -306,8 +306,33 @@ export function createScene(THREE, canvas) {
     renderer.render(scene, camera);
   }
 
+  // 景品パネル：板の後ろ（移動範囲の奥より後ろ）に立てる。絵は呼び出し側が canvas で渡す
+  let prizePanel = null;
+  function setPrizePanel(canvas, field) {
+    if (!prizePanel) {
+      const W = 14, H = 10.5;
+      prizePanel = new THREE.Group();
+      const back = new THREE.Mesh(new THREE.BoxGeometry(W + 0.8, H + 0.8, 0.4), new THREE.MeshStandardMaterial({ color: 0x2a2f3a, metalness: 0.3, roughness: 0.6 }));
+      back.position.z = -0.25;
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ toneMapped: false }));
+      prizePanel.add(back, face);
+      prizePanel.userData.face = face;
+      prizePanel.position.y = H / 2 + 0.6;
+      scene.add(prizePanel);
+    }
+    const face = prizePanel.userData.face;
+    if (face.material.map) face.material.map.dispose();
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    face.material.map = tex;
+    face.material.needsUpdate = true;
+    prizePanel.position.z = (field ? field.zBack : -10) - 3.5;
+  }
+
   return {
     setRound,
+    setPrizePanel,
     savePrev,
     setView,
     render,

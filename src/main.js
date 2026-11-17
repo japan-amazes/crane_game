@@ -151,36 +151,92 @@ async function boot() {
   const status = document.getElementById('status');
   status.textContent = '読み込み中…';
 
-  const [RAPIER, THREE, sceneMod, debugMod, soundMod, presetJson, stageJson] = await Promise.all([
+  const [RAPIER, THREE, sceneMod, debugMod, soundMod, prizeMod, progressMod, screensMod, presetJson, stageJson] = await Promise.all([
     import(LIB.rapier).then(m => m.default || m),
     import(LIB.three),
     import('./render/scene.js'),
     import('./ui/debug.js'),
     import('./audio/sound.js'),
+    import('./game/prizes.js'),
+    import('./game/progress.js'),
+    import('./ui/screens.js'),
     fetch('./presets/hook-presets.json').then(r => r.json()),
     fetch('./presets/stages.json').then(r => r.json())
   ]);
   await RAPIER.init();
 
-  // ---- ステージ ----
-  // stages.json の段階の組み合わせでステージの設定が決まる。獲得で次へ、はずれは同じステージで続ける
+  // ---- ステージ・記録 ----
+  // stages.json の段階の組み合わせでステージの設定が決まる。獲得で次へ、はずれは同じステージで続ける（別のステージへも行ける）
   const basePreset = presetJson.presets[0];
   const stages = stageJson;
   const STAGE_TOTAL = stageCount(stages);
-  const STAGE_KEY = 'crane.stage.v1';
-  let stageNo = 0;          // 0始まり
-  try { stageNo = Math.min(Math.max(0, Number(JSON.parse(localStorage.getItem(STAGE_KEY))?.stage) || 0), STAGE_TOTAL - 1); } catch { /* 保存できない環境 */ }
+  const progress = progressMod.createProgress(STAGE_TOTAL);
   const stageLabel = document.getElementById('stageLabel');
-  function saveStage() { try { localStorage.setItem(STAGE_KEY, JSON.stringify({ stage: stageNo })); } catch { /* 保存できない環境 */ } }
-  const debug = debugMod.createDebugPanel(document.getElementById('debug'), stagePreset(basePreset, stages, stageNo), () => restart(), heightInfo,
-    () => goStage(0));
+  const debug = debugMod.createDebugPanel(document.getElementById('debug'), stagePreset(basePreset, stages, progress.stage), () => restart(true), heightInfo,
+    () => { progress.resetAll(); goStage(0); });
+  // 新しいステージで始める（景品も新しく引く）
   function goStage(i) {
-    stageNo = i;
-    saveStage();
-    debug.setBase(stagePreset(basePreset, stages, stageNo));
-    restart();
+    progress.goStage(i);
+    debug.setBase(stagePreset(basePreset, stages, progress.stage));
+    restart(false);
   }
   const view = sceneMod.createScene(THREE, document.getElementById('view'));
+  const screens = screensMod.createScreens({ progress, onPickStage: i => goStage(i) });
+
+  // ---- 景品 ----
+  // ステージごとにランダムで1つ。はずれて続けている間・「最初から」では変わらない
+  let prize = null;
+  function newPrize() {
+    prize = prizeMod.drawPrize();
+    view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
+  }
+  function prizePanelCanvas(it) {
+    const W = 560, H = 420;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    const cat = prizeMod.CATEGORIES.find(x => x.id === it.cat);
+    const grad = g.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, cat.color);
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    g.fillStyle = cat.color; g.fillRect(0, 0, W, 54);
+    g.fillStyle = '#fff'; g.font = 'bold 30px sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.fillText(cat.name, 18, 28);
+    g.textAlign = 'right'; g.fillStyle = '#ffd166'; g.fillText('★'.repeat(it.rarity), W - 16, 28);
+    g.save(); g.translate(W / 2 - 130, 66); prizeMod.paintPrize(g, it, 260); g.restore();
+    g.fillStyle = '#1f2533'; g.textAlign = 'center'; g.font = 'bold 38px sans-serif';
+    g.fillText(it.name, W / 2, H - 40);
+    return c;
+  }
+
+  // ---- クレジット・確定チケット ----
+  // 1回のプレイ（はずれ後に続ける場合も）で1クレジット。①を押したときに使う
+  let paid = false;          // このプレイの分はもう使ったか
+  let ticketArmed = false;   // 確定チケットを使う予定（①を押したときに消費）
+  let ticketUsed = false;    // このプレイで確定チケットを使った
+  const hud = document.getElementById('hud');
+  function showHud() {
+    const unl = debug.unlimited;
+    hud.innerHTML = `
+      <span class="hud-c">クレジット <b>${unl ? '∞' : progress.credits}</b></span>
+      <span class="hud-t">確定チケット <b>${progress.tickets}</b></span>
+      <span class="hud-p"><b>${progress.points}</b>pt</span>`;
+    btnTicket.disabled = round.arm.phase !== PHASE.READY || paid || (progress.tickets <= 0 && !ticketArmed);
+    btnTicket.classList.toggle('active', ticketArmed);
+    btnTicket.textContent = ticketArmed ? '確定チケット：使う' : '確定チケット';
+  }
+  // ①を押したとき：まだ払っていなければクレジットを使う。足りなければ広告の案内
+  function startPlay() {
+    if (paid) return true;
+    if (!progress.useCredit(debug.unlimited)) {
+      screens.showNoCredit(() => showHud());
+      return false;
+    }
+    paid = true;
+    if (ticketArmed) { ticketArmed = false; ticketUsed = progress.useTicket(); }
+    showHud();
+    return true;
+  }
 
   // ---- 音（BGM・効果音）----
   const sound = soundMod.createSound();
@@ -231,11 +287,15 @@ async function boot() {
     applyCamera(0.5);
   }
 
-  function restart() {
+  // keepPrize：true＝同じ景品のまま作り直す（「最初から」・調整の適用）
+  function restart(keepPrize = true) {
     round = buildRound(RAPIER, debug.currentPreset());
     round.onPhase = onPhase;
     view.setRound(round);
-    stageLabel.textContent = `STAGE ${stageNo + 1}`;
+    if (!keepPrize || !prize) newPrize();
+    stageLabel.textContent = `STAGE ${progress.stage + 1}${progress.isCleared(progress.stage) ? ' ✓' : ''}`;
+    paid = false;
+    ticketUsed = false;
     acc = 0;
     showResult(null);
     setStatus();
@@ -246,13 +306,15 @@ async function boot() {
     applyCamera();
   }
 
-  // 「もう一度」：失敗なら続けて（初期位置へ戻る）、獲得なら次のステージへ（最後なら1から）
+  // 「もう一度」：失敗なら続けて（初期位置へ戻る）、獲得なら次のステージへ（獲得時にもう進めてある）
   function again() {
     if (round && round.result === 'win') {
-      goStage(stageNo + 1 < STAGE_TOTAL ? stageNo + 1 : 0);
+      goStage(progress.stage);
       return;
     }
     if (round && round.result === 'lose') {
+      paid = false;
+      ticketUsed = false;
       showResult(null);
       zoomAt = null;
       unzoomAt = null;
@@ -265,7 +327,17 @@ async function boot() {
     }
   }
 
+  let lastWin = null;   // 獲得したときの記録（結果画面に出す）
   function onPhase(next) {
+    if (next === PHASE.DONE) {
+      if (ticketUsed) round.result = 'win';   // 確定チケット：必ず獲得
+      if (round.result === 'win') {
+        const played = progress.stage;
+        const got = progress.addPrize(prize.id);
+        const { wrapped } = progress.clearStage();
+        lastWin = { played, item: prize, ...got, wrapped };
+      } else lastWin = null;
+    }
     setStatus();
     if (next === PHASE.DESCEND) zoomAt = performance.now() + ZOOM_DELAY * 1000;
     if (next === PHASE.ASCEND) unzoomAt = performance.now() + UNZOOM_DELAY * 1000;
@@ -298,18 +370,34 @@ async function boot() {
     btnZ.disabled = !(ph === PHASE.WAIT_Z || ph === PHASE.STOP_X || ph === PHASE.MOVE_Z);
     btnPeek.disabled = ph !== PHASE.READY;
     if (peek && ph !== PHASE.READY) setPeek(false);
+    showHud();
   }
 
   // ---- 入力（ボタン＋キーボード）----
   const btnX = document.getElementById('btnX');
   const btnZ = document.getElementById('btnZ');
   const btnPeek = document.getElementById('btnPeek');
+  const btnTicket = document.getElementById('btnTicket');
   btnPeek.addEventListener('click', () => { if (!btnPeek.disabled) setPeek(!peek); });
-  bindHold(btnX, on => { if (on) sound.sfx('tap'); round.arm.setInput('x', on); });
+  btnTicket.addEventListener('click', () => {
+    if (btnTicket.disabled) return;
+    ticketArmed = !ticketArmed;
+    showHud();
+  });
+  document.getElementById('btnBox').addEventListener('click', () => screens.showBox());
+  document.getElementById('btnStages').addEventListener('click', () => screens.showStages());
+  // ①：プレイ開始の押下ならクレジットを使う（足りなければ動かさない）
+  function pressX(on) {
+    if (on && round.arm.phase === PHASE.READY && !startPlay()) return false;
+    round.arm.setInput('x', on);
+    return true;
+  }
+  bindHold(btnX, on => { if (on) sound.sfx('tap'); return pressX(on); });
   bindHold(btnZ, on => { if (on) sound.sfx('tap'); round.arm.setInput('z', on); });
   window.addEventListener('keydown', e => {
     if (e.repeat) return;
-    if (e.key === '1' || e.key === 'ArrowRight') round.arm.setInput('x', true);
+    if (screens.isOpen) return;
+    if (e.key === '1' || e.key === 'ArrowRight') pressX(true);
     if (e.key === '2' || e.key === 'ArrowUp') round.arm.setInput('z', true);
     if (e.key === '3' || e.key === ' ') { setCamMode(camMode === 'zoom' ? 'normal' : 'zoom'); e.preventDefault(); }
   });
@@ -320,7 +408,7 @@ async function boot() {
   document.querySelectorAll('[data-cam]').forEach(b => {
     b.addEventListener('click', () => setCamMode(b.dataset.cam));
   });
-  document.getElementById('btnRetry').addEventListener('click', restart);
+  document.getElementById('btnRetry').addEventListener('click', () => restart(true));
   document.getElementById('btnDebug').addEventListener('click', () => debug.toggle());
 
   // ---- 結果表示 ----
@@ -330,18 +418,29 @@ async function boot() {
     const hk = r.hookRecord;
     const hookText = !hk ? '—' : hk.inside ? 'フックの内側' : `フックの外側 ${hk.distance.toFixed(1)}cm`;
     const sw = s => s ? `横${s.tiltX.toFixed(1)}° 奥${s.tiltZ.toFixed(1)}° 速さ${s.speed.toFixed(1)}cm/s` : '—';
-    const last = stageNo + 1 >= STAGE_TOTAL;
-    const title = r.result !== 'win' ? 'はずれ' : last ? '全ステージクリア！' : `STAGE ${stageNo + 1} クリア！`;
-    const btn = r.result !== 'win' ? 'もう一度' : last ? 'ステージ1から' : '次のステージへ';
+    const w = r.result === 'win' ? lastWin : null;
+    const title = !w ? 'はずれ' : w.wrapped ? '全ステージクリア！' : `STAGE ${w.played + 1} クリア！`;
+    const btn = !w ? 'もう一度' : w.wrapped ? 'ステージ1から' : '次のステージへ';
+    const prizeRow = !w ? '' : `
+      <div class="res-prize">
+        <div class="res-pic"></div>
+        <div><b>${w.item.name}</b> <span class="stars">${'★'.repeat(w.item.rarity)}</span><br>
+        ${w.isNew ? '<span class="res-new">NEW！ マイボックスに入りました</span>' : `ダブり：<b>＋${w.points}pt</b>`}
+        ${w.completedCat ? `<br><span class="res-new">${w.completedCat.name} コンプリート！ 確定チケット＋1</span>` : ''}</div>
+      </div>`;
     resultEl.innerHTML = `
       <div class="res-title ${r.result}">${title}</div>
+      ${prizeRow}
       <div class="res-row">引き上げ直前：${hookText}</div>
       <div class="res-row">板の持ち上がり：${r.maxLift.toFixed(1)}cm</div>
       <div class="res-row">① 押した瞬間の揺れ：${sw(r.swing.x)}</div>
       <div class="res-row">② 押した瞬間の揺れ：${sw(r.swing.z)}</div>
-      <button id="btnAgain" class="big">${btn}</button>`;
+      <div class="res-btns"><button id="btnAgain" class="big">${btn}</button>${w ? '' : '<button id="btnSkip">別のステージへ</button>'}</div>`;
     resultEl.hidden = false;
+    if (w) resultEl.querySelector('.res-pic').appendChild(screens.prizeCanvas(w.item, 56));
     document.getElementById('btnAgain').addEventListener('click', again);
+    const skip = document.getElementById('btnSkip');
+    if (skip) skip.addEventListener('click', () => { progress.skipStage(); goStage(progress.stage); });
   }
 
   // ---- ループ（物理は固定ステップ）----
@@ -377,12 +476,13 @@ async function boot() {
     requestAnimationFrame(frame);
   }
 
-  restart();
+  restart(false);
   requestAnimationFrame(frame);
 }
 
+// cb(true) が false を返したら押していないことにする（クレジット不足など）
 function bindHold(el, cb) {
-  const down = e => { e.preventDefault(); if (!el.disabled) { el.classList.add('on'); cb(true); } };
+  const down = e => { e.preventDefault(); if (!el.disabled) { if (cb(true) === false) return; el.classList.add('on'); } };
   const up = e => { e.preventDefault(); if (el.classList.contains('on')) { el.classList.remove('on'); cb(false); } };
   el.addEventListener('pointerdown', down);
   el.addEventListener('pointerup', up);

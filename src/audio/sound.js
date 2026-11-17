@@ -3,7 +3,8 @@
 // 音声ファイルは使わず、ブラウザの音の機能（Web Audio）でファミコン風の音を作って鳴らす
 // BGM は楽譜データ（assets/music/bgm.json）を読んで演奏する。形式は assets/music/README.md
 // スマホは画面を一度タップするまで音を出せないため、最初の操作で鳴り始める
-// （スマホでは「押した瞬間」では許可が下りず、「指を離したとき／タップ」で下りる。鳴るまで操作のたびにやり直す）
+// （iPhone の Safari では「押した瞬間」では許可が下りず、「指を離したとき／タップ」で下りる。
+//   そのため音の準備はタップの完了時に行い、無音を一瞬鳴らして音を出せる状態にする。鳴るまで操作のたびにやり直す）
 // =============================================================
 
 const STORE_KEY = 'crane.sound.v1';
@@ -62,6 +63,8 @@ export function createSound() {
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    // 音を出せる状態になったら BGM を始める
+    ctx.addEventListener('statechange', () => { if (ctx.state === 'running') startBgm(); });
     document.addEventListener('visibilitychange', () => {
       if (!ctx) return;
       if (document.hidden) ctx.suspend(); else ctx.resume();
@@ -178,10 +181,17 @@ export function createSound() {
   function unlock() {
     if (!ensure()) return;
     if (ctx.state === 'running') { startBgm(); return; }
+    // 無音をごく短く鳴らす（iPhone で音を出せる状態にする定番の方法）
+    try {
+      const b = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = b; src.connect(ctx.destination); src.start(0);
+    } catch { /* 無視 */ }
     const r = ctx.resume();
     if (r && r.then) r.then(() => { if (ctx.state === 'running') startBgm(); }).catch(() => { /* 次の操作でやり直す */ });
   }
-  for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) {
+  // タップの完了時（指を離したとき）・クリック・キー入力で準備する。押した瞬間（pointerdown）では行わない
+  for (const ev of ['touchend', 'pointerup', 'click', 'keydown']) {
     window.addEventListener(ev, unlock, { capture: true, passive: true });
   }
 

@@ -8,6 +8,7 @@ import { Arm, PHASE } from './physics/arm.js';
 import { createChain, createChainDynamics } from './physics/chain.js';
 import { createRing, ringAxis } from './physics/ring.js';
 import { createHookMachine } from './machines/hook.js';
+import { createPrizeShelf, shelfHole, SHELF } from './machines/prizeShelf.js';
 
 const LIB = {
   three: 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js',
@@ -18,9 +19,14 @@ const LIB = {
 // 1プレイ分の物理を組み立てる
 // ---------------------------------------------------------------
 export function buildRound(RAPIER, preset) {
+  // 景品の網と箱は、初期位置と反対側（左から始まる台なら右側）に置く。板とフックもその側へ少し寄せる
+  const side = preset.field.startSide === 'right' ? -1 : 1;
+  preset = JSON.parse(JSON.stringify(preset));
+  preset.board.posX = SHELF.boardX * side;
   const world = createWorld(RAPIER);
-  const table = createTable(RAPIER, world, preset);
+  const table = createTable(RAPIER, world, preset, shelfHole(side));
   const machine = createHookMachine(RAPIER, world, preset);
+  const shelf = createPrizeShelf(RAPIER, world, preset, machine, side);
   const g = preset.ring;
 
   // 高さは実機と同じ考え方：アームの高さ（固定）＋下降制限（止まる高さ）で決まり、
@@ -34,22 +40,25 @@ export function buildRound(RAPIER, preset) {
   const chainDyn = createChainDynamics(chain, ring.body, preset);
 
   const round = {
-    world, arm, chain, ring, machine, preset, chainDyn,
+    world, arm, chain, ring, machine, shelf, preset, chainDyn,
+    forceDrop: false, // 確定チケット：網を強制的に傾けて箱を落とす
     swing: {},        // ①②を押した瞬間の揺れ
     hookRecord: null, // 引き上げ直前のフックとの位置関係
     result: null,     // 'win' | 'lose'
     maxLift: 0,
-    visuals: [table.visual, machine.visual, arm.visual, ...chain.visuals, ring.visual],
+    visuals: [table.visual, machine.visual, ...shelf.visuals, arm.visual, ...chain.visuals, ring.visual],
     step() {
       arm.update(STEP);
       chainDyn.step(STEP);
       machine.dampHanging(ring, STEP, preset.board.hangDamping ?? 40);
+      if (round.forceDrop && (arm.phase === PHASE.ASCEND || arm.phase === PHASE.JUDGE)) shelf.forceTilt(STEP);
+      shelf.step(STEP);
       world.step();
       chain.update(STEP, arm.pos, ring.top(), machine);
       if (arm.phase === PHASE.ASCEND || arm.phase === PHASE.JUDGE) {
         round.maxLift = Math.max(round.maxLift, machine.lifted());
       }
-      if (arm.phase === PHASE.ASCEND) earlyJudge();
+      if (arm.phase === PHASE.ASCEND || arm.phase === PHASE.JUDGE) earlyJudge();
     },
     swingNow() { return measureSwing(round); },
     // 失敗後に続ける：作り直さず、記録だけ消してアームを初期位置へ戻す（揺れ・板の位置はそのまま）
@@ -62,19 +71,18 @@ export function buildRound(RAPIER, preset) {
     }
   };
 
-  // 上がりきる前の判定（上昇開始から arm.judgeDelay 秒たってから）
-  // はずれ：リングの一番下がフックの頂点より上に抜けていて、板も浮いていない（もう掛かりようがない）
-  // 獲得：板が判定の高さ以上に浮いた状態が WIN_HOLD 秒以上続いている
-  // どちらとも言えないときは判定を続け、上がりきったら今まで通り判定待ちのあと判定する
+  // 上がりきる前の判定
+  // 獲得：景品の箱が網から取り出し口に落ちたら、その時点で確定
+  // はずれ（上昇開始から arm.judgeDelay 秒たってから）：リングの一番下がフックの頂点より上に抜けていて、
+  //   板も浮いておらず網も傾いていない（もう掛かりようがない）
+  // どちらとも言えないときは判定を続け、上がりきったら判定待ちのあと判定する
   const MISS_MARGIN = 0.5;  // cm
-  const WIN_HOLD = 1.0;     // 秒
-  let winTimer = 0;
   function earlyJudge() {
+    if (shelf.fallen()) { arm.finish(); return; }
+    if (arm.phase !== PHASE.ASCEND) return;
     const lift = machine.lifted();
-    winTimer = lift >= preset.board.liftJudge ? winTimer + STEP : 0;
     if (arm.timer < (preset.arm.judgeDelay ?? 3)) return;
-    if (winTimer >= WIN_HOLD) { arm.finish(); return; }
-    if (lift > 0.3) return;
+    if (lift > 0.3 || shelf.thetaDeg > 1) return;
     const c = ring.body.translation(), t = ring.top();
     const ringLow = 2 * c.y - t.y - ring.tubeR;
     let hookHigh = -Infinity;
@@ -84,19 +92,18 @@ export function buildRound(RAPIER, preset) {
   }
 
   arm.onPhase = (next) => {
-    if (next === PHASE.ASCEND) winTimer = 0;
     if (next === PHASE.MOVE_X) round.swing.x = measureSwing(round);
     if (next === PHASE.MOVE_Z) round.swing.z = measureSwing(round);
     if (next === PHASE.ASCEND) round.hookRecord = machine.measure(ring, ringAxis(ring));
     if (next === PHASE.DONE) {
-      round.result = machine.lifted() >= preset.board.liftJudge ? 'win' : 'lose';
+      round.result = shelf.fallen() ? 'win' : 'lose';
     }
     if (round.onPhase) round.onPhase(next);
   };
 
   // 生成直後の揺れを落ち着かせる（1秒分）
   // （初期のねじれは残したまま、振り子の揺れだけ落ち着かせる）
-  for (let i = 0; i < 240; i++) { world.step(); chain.update(STEP, arm.pos, ring.top(), machine); }
+  for (let i = 0; i < 240; i++) { shelf.step(STEP); world.step(); chain.update(STEP, arm.pos, ring.top(), machine); }
   return round;
 }
 
@@ -189,6 +196,23 @@ async function boot() {
   function newPrize() {
     prize = prizeMod.drawPrize();
     view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
+    view.setPrizeBoxArt(prizeBoxArt(prize));
+  }
+  // 景品の箱（幅5×高さ7）の正面の絵：上の帯にカテゴリーと★、真ん中に景品、下に名前
+  function prizeBoxArt(it) {
+    const W = 250, H = 350;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    const cat = prizeMod.CATEGORIES.find(x => x.id === it.cat);
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = cat.color; g.fillRect(0, 0, W, 50); g.fillRect(0, H - 70, W, 70);
+    g.fillStyle = '#ffd166'; g.font = 'bold 30px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('★'.repeat(it.rarity), W / 2, 27);
+    g.save(); g.translate(15, 62); prizeMod.paintPrize(g, it, 220); g.restore();
+    g.fillStyle = '#1f2533'; g.font = 'bold 30px sans-serif';
+    g.fillText(it.name, W / 2, H - 35, W - 16);
+    return { front: c, side: cat.color };
   }
   // パネル（横30cm×縦28cm）と同じ縦横比の絵：上の帯にカテゴリーと★、真ん中に大きく景品、下に景品名
   function prizePanelCanvas(it) {
@@ -235,7 +259,7 @@ async function boot() {
       return false;
     }
     paid = true;
-    if (ticketArmed) { ticketArmed = false; ticketUsed = progress.useTicket(); }
+    if (ticketArmed) { ticketArmed = false; ticketUsed = progress.useTicket(); round.forceDrop = ticketUsed; }
     showHud();
     return true;
   }
@@ -291,10 +315,10 @@ async function boot() {
 
   // keepPrize：true＝同じ景品のまま作り直す（「最初から」・調整の適用）
   function restart(keepPrize = true) {
+    if (!keepPrize || !prize) newPrize();
     round = buildRound(RAPIER, debug.currentPreset());
     round.onPhase = onPhase;
     view.setRound(round);
-    if (!keepPrize || !prize) newPrize();
     stageLabel.textContent = `STAGE ${progress.stage + 1}${progress.isCleared(progress.stage) ? ' ✓' : ''}`;
     paid = false;
     ticketUsed = false;
@@ -317,6 +341,7 @@ async function boot() {
     if (round && round.result === 'lose') {
       paid = false;
       ticketUsed = false;
+      round.forceDrop = false;
       showResult(null);
       zoomAt = null;
       unzoomAt = null;

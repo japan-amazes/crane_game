@@ -83,6 +83,28 @@ export function createScene(THREE, canvas) {
     return chromeEnvTex;
   }
 
+  // 景品の箱の絵（呼び出し側が setPrizeBoxArt で渡す）と、網の格子の絵
+  let prizeBoxArt = null;
+  function canvasTex(canvas) {
+    const t = new THREE.CanvasTexture(canvas);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }
+  let netTex = null;
+  function netTexture() {
+    if (netTex) return netTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    g.strokeStyle = '#c9d1db'; g.lineWidth = 6;
+    g.strokeRect(0, 0, 64, 64);
+    netTex = new THREE.CanvasTexture(c);
+    netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
+    netTex.repeat.set(6, 8);
+    return netTex;
+  }
+
   let tracked = [];   // { body, group }
   let round = null;
   let viewName = 'front';
@@ -97,14 +119,29 @@ export function createScene(THREE, canvas) {
     else if (p.type === 'chainlink') geo = chainLinkGeometry(p.length, p.width, p.wire, 0);
     else if (p.type === 'curblink') geo = chainLinkGeometry(p.length, p.width, p.wire, p.twist);
     else if (p.type === 'splitring') geo = splitRingGeometry(p.radius, p.wire, p.gap);
-    const mat = p.finish === 'chrome'
+    let mat;
+    if (p.finish === 'chrome') {
       // メッキ調（リング・チェーン・つなぎのリング）：強い光沢＋筐体照明の写り込み
-      ? new THREE.MeshStandardMaterial({ color: p.color, metalness: 1, roughness: 0.14, envMap: chromeEnv(), envMapIntensity: 1.2 })
-      : new THREE.MeshStandardMaterial({
+      mat = new THREE.MeshStandardMaterial({ color: p.color, metalness: 1, roughness: 0.14, envMap: chromeEnv(), envMapIntensity: 1.2 });
+    } else if (p.plastic) {
+      // プラスチック（景品の網を引くチェーン）
+      mat = new THREE.MeshStandardMaterial({ color: p.color, metalness: 0, roughness: 0.35 });
+    } else if (p.net) {
+      // 網：格子の絵を貼った半透明の板
+      mat = new THREE.MeshStandardMaterial({ map: netTexture(), transparent: true, alphaTest: 0.3, metalness: 0.5, roughness: 0.5, side: THREE.DoubleSide });
+    } else if (p.prizeBox && prizeBoxArt) {
+      // 景品の箱：正面・背面に景品の絵、側面はカテゴリーの色
+      const face = new THREE.MeshStandardMaterial({ map: canvasTex(prizeBoxArt.front), roughness: 0.5 });
+      const side = new THREE.MeshStandardMaterial({ color: prizeBoxArt.side, roughness: 0.5 });
+      const top = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+      mat = [side, side, top, side, face, face];   // +x, −x, +y, −y, +z（正面）, −z
+    } else {
+      mat = new THREE.MeshStandardMaterial({
         color: p.color,
         metalness: p.type === 'box' ? 0.1 : 0.6,
         roughness: 0.45
       });
+    }
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
     if (p.quat) mesh.quaternion.set(p.quat.x, p.quat.y, p.quat.z, p.quat.w);
@@ -169,7 +206,7 @@ export function createScene(THREE, canvas) {
       scene.remove(t.group);
       t.group.traverse(o => {
         if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
-        if (o.material) o.material.dispose();
+        if (o.material) for (const m of [].concat(o.material)) { if (m.map && m.map !== netTex) m.map.dispose(); m.dispose(); }
       });
     }
     tracked = [];
@@ -333,6 +370,7 @@ export function createScene(THREE, canvas) {
   return {
     setRound,
     setPrizePanel,
+    setPrizeBoxArt(art) { prizeBoxArt = art; },
     savePrev,
     setView,
     render,

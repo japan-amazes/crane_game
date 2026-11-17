@@ -40,7 +40,7 @@ export function createRing(RAPIER, world, preset, chain, armPos, armBody) {
         .setRotation(q)
         .setMass(g.mass / SEGMENTS)
         .setFriction(g.friction)
-        .setCollisionGroups(groups(GROUP.RING, GROUP.TABLE | GROUP.BOARD)),
+        .setCollisionGroups(groups(GROUP.RING, GROUP.TABLE | GROUP.BOARD | GROUP.PRIZE)),
       body
     );
   }

@@ -29,7 +29,7 @@ export function createHookMachine(RAPIER, world, preset) {
   const boardY = b.height / 2;
   const board = world.createRigidBody(
     RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(0, boardY, 0)
+      .setTranslation(b.posX || 0, boardY, 0)
       .setLinearDamping(b.linearDamping ?? 0.05)
       .setAngularDamping(b.angularDamping ?? 0.2)
       .setCcdEnabled(true)
@@ -39,7 +39,7 @@ export function createHookMachine(RAPIER, world, preset) {
       .setMass(b.mass)
       .setFriction(mat.friction)
       .setRestitution(mat.restitution)
-      .setCollisionGroups(groups(GROUP.BOARD, GROUP.TABLE | GROUP.RING | GROUP.CHAIN)),
+      .setCollisionGroups(groups(GROUP.BOARD, GROUP.TABLE | GROUP.RING | GROUP.CHAIN | GROUP.PRIZE)),
     board
   );
 

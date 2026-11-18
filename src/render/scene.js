@@ -306,6 +306,7 @@ export function createScene(THREE, canvas) {
         canvas.height !== Math.floor(h * renderer.getPixelRatio())) {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
+      fitFrame();
       if (tween) tween.to = viewPose(viewName); else setView(viewName);
     }
   }
@@ -366,6 +367,21 @@ export function createScene(THREE, canvas) {
     cabinetKey = key;
     cabinet = cabinetMod.buildCabinet(THREE, { field, theme, envMap: chromeEnv() });
     scene.add(cabinet);
+    fitFrame();
+  }
+  // 手前の枠：正面カメラで見たとき、天幕が画面の上端、柱が左右の端、電球の帯が下端に来るように並べる
+  function fitFrame() {
+    if (!cabinet || !round) return;
+    const p = viewPose('front');
+    const c = camera.clone();
+    c.fov = p.fov; c.position.copy(p.pos); c.lookAt(p.look);
+    c.updateProjectionMatrix(); c.updateMatrixWorld();
+    const zf = cabinetMod.FRAME.z;
+    const at = (nx, ny) => {   // 画面上の点から見た先が、枠を立てる面と交わる位置
+      const dir = new THREE.Vector3(nx, ny, 0.5).unproject(c).sub(c.position).normalize();
+      return c.position.clone().addScaledVector(dir, (zf - c.position.z) / dir.z);
+    };
+    cabinetMod.layoutFrame(cabinet, theme, { L: at(-1, 0).x, R: at(1, 0).x, T: at(0, 1).y, B: at(0, -1).y });
   }
   // テーマを切り替える：背景・筐体・床
   function setTheme(t) {

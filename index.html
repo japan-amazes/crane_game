@@ -38,10 +38,6 @@
   /* ---- 3D表示と、その上の表示 ---- */
   #stage { position: relative; flex: 1; min-height: 0; }
   #view { width: 100%; height: 100%; display: block; touch-action: none; }
-  /* 筐体の手前の枠（テーマの画像。真ん中は透明）。正面のカメラのときだけ表示 */
-  #frameOverlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none;
-    transition: opacity 0.4s; }
-  #frameOverlay.off { opacity: 0; }
   #status { position: absolute; left: 0; right: 0; top: 0;
     padding: calc(8px + var(--sat)) calc(12px + var(--sar)) 12px calc(12px + var(--sal));
     font-size: 14px; color: #fff; text-shadow: 0 1px 3px #3a1460;
@@ -268,7 +264,6 @@
 <div id="app">
   <div id="stage">
     <canvas id="view"></canvas>
-    <img id="frameOverlay" alt="">
     <div id="status"></div>
     <div id="stageLabel"></div>
     <div id="themeToggle"><button data-theme="cute">キュート</button><button data-theme="cool">クール</button></div>

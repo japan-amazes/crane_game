@@ -10,7 +10,6 @@ import { createRing, ringAxis } from './physics/ring.js';
 import { createHookMachine } from './machines/hook.js';
 import { createPrizeShelf, shelfHole, SHELF } from './machines/prizeShelf.js';
 import { applyChainRatio } from './game/chainRange.js';
-import { frameImage as cabinetFrame } from './render/cabinet.js';
 
 const LIB = {
   three: 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js',
@@ -335,12 +334,8 @@ async function boot() {
   const THEME_KEY = 'crane.theme.v1';
   let theme = 'cute';
   try { if (localStorage.getItem(THEME_KEY) === 'cool') theme = 'cool'; } catch { /* 保存できない環境 */ }
-  // 手前の枠の画像：正面のカメラのときだけ重ねる（ズーム・確認のときは消す）
-  const frameEl = document.getElementById('frameOverlay');
-  function showFrame(on) { frameEl.classList.toggle('off', !on); }
   function applyTheme(t, redraw) {
     theme = t;
-    frameEl.src = cabinetFrame(t);
     document.body.classList.toggle('theme-cool', t === 'cool');
     document.body.classList.toggle('theme-cute', t !== 'cool');
     for (const b of document.querySelectorAll('#themeToggle button')) b.classList.toggle('on', b.dataset.theme === t);
@@ -413,7 +408,6 @@ async function boot() {
   function applyCamera(duration = 0) {
     const zoomNow = camMode === 'zoom' && zoomed;
     view.setView(zoomNow ? 'zoom' : 'front', duration);
-    showFrame(!zoomNow);
     document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('active', b.dataset.cam === camMode));
   }
   // 確認用ズーム：①を押す前だけ、斜めからフック（口の向き）を見られる
@@ -421,7 +415,7 @@ async function boot() {
   function setPeek(on) {
     peek = on;
     btnPeek.classList.toggle('active', on);
-    if (on) { view.setView('zoom', 0.5); showFrame(false); } else applyCamera(0.5);
+    if (on) view.setView('zoom', 0.5); else applyCamera(0.5);
   }
   function setCamMode(mode) {
     camMode = mode;

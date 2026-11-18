@@ -68,6 +68,7 @@
         "height": 0.8,
         "mass": 120,
         "material": "plastic",
+        "friction": 0,
         "liftJudge": 3,
         "hangDamping": 150
       },

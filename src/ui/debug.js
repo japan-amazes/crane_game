@@ -58,6 +58,7 @@ const SCHEMA = [
   { path: 'board.height', label: '板の厚み', min: 0.3, max: 5, step: 0.1, unit: 'cm' },
   { path: 'board.mass', label: '板の重さ', min: 20, max: 400, step: 10, unit: 'g' },
   { path: 'board.material', label: '板の素材', options: { plastic: 'プラスチック', metal: '金属', wood: '木' } },
+  { path: 'board.friction', label: '板の表面のすべりにくさ（0＝一番すべる）', min: 0, max: 1, step: 0.01 },
   { path: 'field.tableTiltDeg', label: '台の傾き（＋＝奥が低い）', min: -10, max: 10, step: 0.5, unit: '°' }
 ];
 

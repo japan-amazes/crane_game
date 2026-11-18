@@ -37,7 +37,10 @@ export function createHookMachine(RAPIER, world, preset) {
   world.createCollider(
     RAPIER.ColliderDesc.cuboid(b.width / 2, b.height / 2, b.depth / 2)
       .setMass(b.mass)
-      .setFriction(mat.friction)
+      // 表面のすべりにくさ（board.friction、0＝一番すべる）。リングとこすれるときは、すべりやすい方の値を使う（Min）
+      // ※台とは、台側の「大きい方」（Max）が優先されるので、板が台の上ですべることはない
+      .setFriction(b.friction ?? mat.friction)
+      .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
       .setRestitution(mat.restitution)
       .setCollisionGroups(groups(GROUP.BOARD, GROUP.TABLE | GROUP.RING | GROUP.CHAIN | GROUP.PRIZE)),
     board

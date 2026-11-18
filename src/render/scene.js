@@ -26,12 +26,15 @@ export function createScene(THREE, canvas) {
   sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
   scene.add(sun);
 
-  // 真下ガイド：アームの真下に、周りをぼかした黒い丸（影のような目印）を表示
+  // 真下ガイド：アームの真下に、周りをぼかした丸（影のような目印）を表示
+  // テーマで変える（キュート：黒いぼかしの丸／クール：床が黒っぽいので、レーザーポインターのような赤い十字）
   const GUIDE_SIZE = 3.5;    // 直径（cm）
   const guide = new THREE.Mesh(
     new THREE.PlaneGeometry(GUIDE_SIZE, GUIDE_SIZE),
     new THREE.MeshBasicMaterial({
       map: softDotTexture(),
+      color: 0x000000,
+      toneMapped: false,
       transparent: true,
       opacity: 0.55,
       depthWrite: false,
@@ -43,22 +46,44 @@ export function createScene(THREE, canvas) {
   guide.visible = false;
   scene.add(guide);
 
-  // 中心が黒く、外側に向かって透明になる丸い画像
+  // 中心が濃く、外側に向かって透明になる丸い画像（白で作り、色は材質の color で付ける）
   function softDotTexture() {
     const size = 128;
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const g = c.getContext('2d');
     const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    grad.addColorStop(0, 'rgba(0,0,0,1)');
-    grad.addColorStop(0.35, 'rgba(0,0,0,0.85)');
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.35, 'rgba(255,255,255,0.85)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = grad;
     g.fillRect(0, 0, size, size);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
   }
+  // 赤い十字＋真ん中の点。周りを少しぼかして光っているように見せる（クール用）
+  function laserCrossTexture() {
+    const size = 128, m = size / 2;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.strokeStyle = g.fillStyle = 'rgb(255,30,30)';
+    g.shadowColor = 'rgba(255,0,0,0.9)';
+    g.lineCap = 'round';
+    for (const [blur, w] of [[14, 6], [4, 3]]) {   // 外側のぼかし → 内側の芯
+      g.shadowBlur = blur; g.lineWidth = w;
+      g.beginPath();
+      g.moveTo(m, 14); g.lineTo(m, m - 12); g.moveTo(m, m + 12); g.lineTo(m, size - 14);
+      g.moveTo(14, m); g.lineTo(m - 12, m); g.moveTo(m + 12, m); g.lineTo(size - 14, m);
+      g.stroke();
+      g.beginPath(); g.arc(m, m, w * 0.9, 0, Math.PI * 2); g.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+  const guideTex = { cute: guide.material.map, cool: laserCrossTexture() };
 
   // メッキの写り込み用の周囲（画面には出さない）：暗い筐体の中に、照明の光る帯が並んでいるイメージ
   let chromeEnvTex = null;
@@ -387,6 +412,10 @@ export function createScene(THREE, canvas) {
   function setTheme(t) {
     theme = t === 'cool' ? 'cool' : 'cute';
     scene.background = new THREE.Color(cabinetMod.backgroundColor(theme));
+    guide.material.map = guideTex[theme];
+    guide.material.color.set(theme === 'cool' ? 0xffffff : 0x000000);
+    guide.material.opacity = theme === 'cool' ? 1 : 0.55;
+    guide.material.needsUpdate = true;
     if (round) {
       setCabinet(round.preset.field);
       for (const tr of tracked) tr.group.traverse(o => {

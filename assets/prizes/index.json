@@ -5,6 +5,7 @@
     "banana",
     "candy",
     "carrot",
+    "cheese",
     "chips",
     "choco",
     "chocoset",
@@ -17,6 +18,9 @@
     "fruitbasket",
     "grape",
     "gummy",
+    "gyoza",
+    "icecup",
+    "icegift",
     "juiceset",
     "kettle",
     "melon",
@@ -24,8 +28,13 @@
     "mug",
     "onion",
     "orange",
+    "pizza",
+    "popsicle",
     "potato",
+    "pudding",
     "senbei",
+    "shortcake",
+    "shrimp",
     "soda",
     "sports",
     "tea",
@@ -35,6 +44,7 @@
     "toothbrush",
     "towel",
     "umbrella",
-    "water"
+    "water",
+    "yogurt"
   ]
 }

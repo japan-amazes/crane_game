@@ -2,7 +2,7 @@
 // ゲームの画面：マイボックス（コレクション）・ステージ一覧・広告（仮）
 // どれも画面全体にかぶせる表示（モーダル）
 // =============================================================
-import { CATEGORIES, paintPrize, EXCHANGE_COST } from '../game/prizes.js';
+import { CATEGORIES, paintPrize, DUP_POINTS } from '../game/prizes.js';
 
 export function createScreens({ progress, onPickStage }) {
   const root = document.getElementById('modal');
@@ -56,36 +56,12 @@ export function createScreens({ progress, onPickStage }) {
             ${n > 1 ? `<div class="m-num">×${n}</div>` : ''}
           </div>`;
         }).join('')}</div>
-        <div class="m-note">取っていない景品をタップすると、ポイントと交換できます（★1＝${EXCHANGE_COST[1]}pt ★2＝${EXCHANGE_COST[2]}pt ★3＝${EXCHANGE_COST[3]}pt ★4＝${EXCHANGE_COST[4]}pt）。カテゴリーをコンプリートすると確定チケットが1枚もらえます</div>
-        <div class="m-ex" hidden></div>
+        <div class="m-note">同じ景品をまた取ると、★の数だけポイントが貯まります（★1＝${DUP_POINTS[1]}pt … ★5＝${DUP_POINTS[5]}pt）。カテゴリーをコンプリートすると確定チケットが1枚もらえます</div>
       </div>`);
     root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { boxTab = Number(b.dataset.tab); showBox(); }));
     root.querySelectorAll('.m-cell').forEach(cell => {
       const it = cat.items.find(x => x.id === cell.dataset.item);
       if (progress.count(it.id) > 0) cell.querySelector('.m-pic').appendChild(prizeCanvas(it, 64));
-      else cell.addEventListener('click', () => askExchange(it));
-    });
-  }
-
-  function askExchange(it) {
-    const ex = root.querySelector('.m-ex');
-    const cost = EXCHANGE_COST[it.rarity];
-    const ok = progress.points >= cost;
-    ex.innerHTML = `
-      <div>「${it.name}」（${'★'.repeat(it.rarity)}）を <b>${cost}pt</b> で交換しますか？${ok ? '' : `<br><small>ポイントが足りません（あと${cost - progress.points}pt）</small>`}</div>
-      <div class="m-ex-btns"><button class="big" ${ok ? '' : 'disabled'} data-do>交換する</button><button data-cancel>やめる</button></div>`;
-    ex.hidden = false;
-    ex.querySelector('[data-cancel]').addEventListener('click', () => { ex.hidden = true; });
-    ex.querySelector('[data-do]').addEventListener('click', () => {
-      const r = progress.exchange(it.id);
-      if (!r) return;
-      showBox();
-      if (r.completedCat) {
-        const ex2 = root.querySelector('.m-ex');
-        ex2.innerHTML = `<div><b>${r.completedCat.name} コンプリート！</b><br>確定チケットを1枚もらいました</div><div class="m-ex-btns"><button data-cancel>OK</button></div>`;
-        ex2.hidden = false;
-        ex2.querySelector('[data-cancel]').addEventListener('click', () => { ex2.hidden = true; });
-      }
     });
   }
 

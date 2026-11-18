@@ -119,6 +119,10 @@ const PANEL_FONT = '"M PLUS Rounded 1c"';   // 景品パネルの商品名のフ
 // ステージの設定：基本設定に、各項目の値を重ねる
 // order が "random"：ステージ番号から決まるランダムで、各項目の値を選ぶ（同じステージはいつも同じ設定）
 // それ以外：ステージ番号を各項目の段階に分けて順に変える（最初の項目がいちばん早く変わる）
+// ステージの★レベル（1〜starCycle）。ステージ1（i=0）が★1
+export function stageStars(spec, i) {
+  return (i % (spec.starCycle || 5)) + 1;
+}
 export function stageCount(spec) {
   return spec.levels.reduce((n, lv) => n * lv.values.length, 1);
 }
@@ -138,6 +142,15 @@ export function stagePreset(base, spec, i) {
       for (const k of ks.slice(0, -1)) o = o[k];
       o[ks[ks.length - 1]] = val;
     }
+  }
+  // リングの向き：フックの向きに対して、ステージの★レベルで決まる角度にする
+  //   上から見たフックの面とリングの面の角度 A（90＝直角で一番引っ掛かりやすい、0＝平行で一番引っ掛かりにくい）
+  //   フックとリングの yaw が同じとき直角（A=90）になるので、リングの yaw ＝ フックの yaw ±（90−A）。＋−はランダム
+  const rt = spec.ringToHook;
+  if (rt && rt.planeAngleByStar) {
+    const A = rt.planeAngleByStar[stageStars(spec, i) - 1] ?? 90;
+    const sign = rand ? (rand() < 0.5 ? -1 : 1) : 1;
+    p.ring.yawDeg = ((p.hook.yawDeg + sign * (90 - A)) % 180 + 180) % 180;   // リングは180°回すと同じ形
   }
   return applyChainRatio(p);   // チェーンの長さは、リングの直径と下降制限から決まる範囲の割合で
 }
@@ -226,10 +239,10 @@ async function boot() {
   const screens = screensMod.createScreens({ progress, onPickStage: i => goStage(i) });
 
   // ---- 景品 ----
-  // ステージごとにランダムで1つ。はずれて続けている間・「最初から」では変わらない
+  // ステージの★レベルの品からランダムで1つ。はずれて続けている間・「最初から」では変わらない
   let prize = null;
   function newPrize() {
-    prize = prizeMod.drawPrize();
+    prize = prizeMod.drawPrize(stageStars(stages, progress.stage));
     view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
     view.setPrizeBoxArt(prizeBoxArt(prize));
   }

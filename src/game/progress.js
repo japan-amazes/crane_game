@@ -2,7 +2,7 @@
 // 遊びの記録（スマホの中に保存）
 // ステージの進み具合・クリア済み・コレクション・ポイント・確定チケット・クレジット
 // =============================================================
-import { CATEGORIES, findItem, DUP_POINTS, EXCHANGE_COST } from './prizes.js';
+import { CATEGORIES, findItem, DUP_POINTS } from './prizes.js';
 
 const KEY = 'crane.progress.v1';
 const OLD_STAGE_KEY = 'crane.stage.v1';
@@ -116,17 +116,6 @@ export function createProgress(stageTotal) {
       save();
       return { isNew: had === 0, points, completedCat };
     },
-    // ポイントで交換（まだ持っていない景品だけ）
-    exchange(id) {
-      const it = findItem(id);
-      const cost = EXCHANGE_COST[it.rarity];
-      if ((st.box[id] || 0) > 0 || st.points < cost) return null;
-      st.points -= cost;
-      st.box[id] = 1;
-      const completedCat = checkComplete(it.cat);
-      save();
-      return { completedCat };
-    }
   };
 
   // カテゴリーの9品がそろったら、確定チケットを1枚（カテゴリーごとに1回だけ）

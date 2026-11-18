@@ -212,6 +212,7 @@ async function boot() {
     debug.setBase(stagePreset(basePreset, stages, progress.stage));
     restart(false);
   }
+  await prizeMod.loadPrizeImages();   // 景品の画像（あるものだけ）
   const view = sceneMod.createScene(THREE, document.getElementById('view'));
   const screens = screensMod.createScreens({ progress, onPickStage: i => goStage(i) });
 

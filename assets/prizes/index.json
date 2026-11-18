@@ -1,0 +1,11 @@
+{
+  "note": "景品の画像（512×512・背景透明の WebP）。ここに書いたIDの画像だけを読み込み、無い品はプログラムの絵（prizeArt.js）を使う",
+  "images": [
+    "candy",
+    "chips",
+    "chocoset",
+    "cookie",
+    "gummy",
+    "senbei"
+  ]
+}

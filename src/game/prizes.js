@@ -97,11 +97,32 @@ export function drawPrize(rand = Math.random) {
 }
 
 // ---------------------------------------------------------------
-// 絵（canvas 2D）。size×size の正方形に描く（描き方は prizeArt.js）
+// 景品の画像（assets/prizes/ID.webp）。index.json に書いてある品だけ読み込む
+// 画像がある品は画像を、無い品はプログラムの絵（prizeArt.js）を使う
+// ---------------------------------------------------------------
+const images = {};
+export async function loadPrizeImages(base = './assets/prizes/') {
+  try {
+    const r = await fetch(base + 'index.json');
+    if (!r.ok) return;
+    const { images: ids = [] } = await r.json();
+    await Promise.all(ids.map(id => new Promise(res => {
+      const img = new Image();
+      img.onload = () => { images[id] = img; res(); };
+      img.onerror = () => res();   // 読めなければプログラムの絵のまま
+      img.src = base + id + '.webp';
+    })));
+  } catch (e) { console.warn('景品の画像を読み込めませんでした', e); }
+}
+
+// ---------------------------------------------------------------
+// 絵。size×size の正方形に描く
 // ---------------------------------------------------------------
 export function paintPrize(ctx, item, size) {
+  const img = images[item.id];
+  if (img) { ctx.drawImage(img, 0, 0, size, size); return; }
   ctx.save();
-  ctx.scale(size / 100, size / 100);   // 100×100 の座標で描いて拡大
+  ctx.scale(size / 100, size / 100);   // 100×100 の座標で描いて拡大（prizeArt.js）
   paintArt(ctx, item);
   ctx.restore();
 }

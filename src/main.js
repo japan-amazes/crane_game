@@ -107,23 +107,37 @@ export function buildRound(RAPIER, preset) {
   return round;
 }
 
-// ステージの設定：ステージ番号（0始まり）を各項目の段階に分けて、基本設定に重ねる
-// 最初の項目がいちばん早く変わる（初期位置の左右 → フックの向き → チェーン → リングの径 → リングの太さ）
+// ステージの設定：基本設定に、各項目の値を重ねる
+// order が "random"：ステージ番号から決まるランダムで、各項目の値を選ぶ（同じステージはいつも同じ設定）
+// それ以外：ステージ番号を各項目の段階に分けて順に変える（最初の項目がいちばん早く変わる）
 export function stageCount(spec) {
   return spec.levels.reduce((n, lv) => n * lv.values.length, 1);
 }
 export function stagePreset(base, spec, i) {
   const p = JSON.parse(JSON.stringify(base));
+  const rand = spec.order === 'random' ? seededRandom((spec.seed || 1) * 100003 + i) : null;
   let rest = i;
   for (const lv of spec.levels) {
-    const v = lv.values[rest % lv.values.length];
-    rest = Math.floor(rest / lv.values.length);
+    const n = lv.values.length;
+    const v = rand ? lv.values[Math.floor(rand() * n)] : lv.values[rest % n];
+    rest = Math.floor(rest / n);
     const ks = lv.path.split('.');
     let o = p;
     for (const k of ks.slice(0, -1)) o = o[k];
     o[ks[ks.length - 1]] = v;
   }
   return p;
+}
+// 種（seed）から決まる乱数（mulberry32）
+function seededRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 // 高さの目安（調整パネルに表示）：チェーン・リングの寸法と、アームの高さ・下降制限から計算

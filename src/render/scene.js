@@ -215,6 +215,7 @@ export function createScene(THREE, canvas) {
   function setRound(r) {
     clear();
     round = r;
+    setCabinet(r.preset.field);
     for (const v of r.visuals) {
       const group = new THREE.Group();
       for (const p of v.parts) group.add(buildPart(p));
@@ -341,6 +342,57 @@ export function createScene(THREE, canvas) {
       guide.position.set(a.x, guideHeight(a), a.z);
     }
     renderer.render(scene, camera);
+  }
+
+  // 筐体：背面は白いパネル、左右はガラス（見た目だけ。当たり判定はなし）
+  //   背面は景品パネルのすぐ後ろ、左右のガラスは網の棚と取り出し口より外側に置く
+  const CAB = { halfW: 20, height: 58, front: 14 };
+  let cabinet = null, cabinetKey = '';
+  function setCabinet(field) {
+    const back = (field ? field.zBack : -10) - 4.6;
+    const key = String(back);
+    if (cabinet && key === cabinetKey) return;
+    if (cabinet) {
+      scene.remove(cabinet);
+      cabinet.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    }
+    cabinetKey = key;
+    cabinet = new THREE.Group();
+    const depth = CAB.front - back;
+    const zc = (CAB.front + back) / 2;
+    // 背面の白いパネル
+    const wall = new THREE.Mesh(
+      new THREE.BoxGeometry(CAB.halfW * 2, CAB.height, 0.6),
+      new THREE.MeshStandardMaterial({ color: 0xf4f5f7, emissive: 0x5a5d63, roughness: 0.7, metalness: 0 })   // 照明が弱くても白く見えるよう少し自発光
+    );
+    wall.position.set(0, CAB.height / 2 - 2, back - 0.3);
+    wall.receiveShadow = true;
+    cabinet.add(wall);
+    // 左右のガラス（うっすら青く、照明が映り込む）と、ふちの金属フレーム
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: 0xd8ecff, transparent: true, opacity: 0.14, roughness: 0.05, metalness: 0.2,
+      envMap: chromeEnv(), envMapIntensity: 0.9, depthWrite: false, side: THREE.DoubleSide
+    });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x8a919c, metalness: 0.8, roughness: 0.3, envMap: chromeEnv() });
+    for (const sx of [-1, 1]) {
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(depth, CAB.height), glassMat);
+      glass.rotation.y = Math.PI / 2;
+      glass.position.set(sx * CAB.halfW, CAB.height / 2 - 2, zc);
+      glass.renderOrder = 10;
+      cabinet.add(glass);
+      // フレーム（手前・奥の縦、上・下の横）
+      for (const z of [back, CAB.front]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.8, CAB.height, 0.8), frameMat);
+        post.position.set(sx * CAB.halfW, CAB.height / 2 - 2, z);
+        cabinet.add(post);
+      }
+      for (const y of [-2, CAB.height - 2]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, depth), frameMat);
+        rail.position.set(sx * CAB.halfW, y, zc);
+        cabinet.add(rail);
+      }
+    }
+    scene.add(cabinet);
   }
 
   // 景品パネル：板の後ろ（移動範囲の奥より後ろ）に立てる。絵は呼び出し側が canvas で渡す

@@ -78,9 +78,13 @@ export function createPrizeShelf(RAPIER, world, preset, machine, side) {
   let force = 0;         // 確定チケットで強制的に傾ける量（0〜1）
 
   // チェーンの見た目：コマを両端の間に並べる（たるみがあれば下にふくらませる）
-  const nLinks = Math.max(3, Math.round(L / (S.linkLen * 0.75)));
+  // 板が高く持ち上がって両端が離れても、コマが離れて浮かないよう、距離に合わせて使うコマの数を増やす
+  // （使わないコマは網側の端に重ねておく）
+  const PITCH = S.linkLen * 0.75;
+  const nBase = Math.max(3, Math.round(L / PITCH));
+  const nMax = Math.max(nBase, Math.ceil(60 / PITCH));
   const links = [];
-  for (let i = 0; i < nLinks; i++) {
+  for (let i = 0; i < nMax; i++) {
     const st = { t: { x: 0, y: 0, z: 0 }, q: { x: 0, y: 0, z: 0, w: 1 } };
     links.push({ st, body: { translation: () => st.t, rotation: () => st.q } });
   }
@@ -93,8 +97,10 @@ export function createPrizeShelf(RAPIER, world, preset, machine, side) {
       y: A.y + (B.y - A.y) * u - sag * 4 * u * (1 - u),
       z: A.z + (B.z - A.z) * u
     });
-    for (let i = 0; i < nLinks; i++) {
-      const u0 = i / nLinks, u1 = (i + 1) / nLinks;
+    const nUse = Math.min(nMax, Math.max(nBase, Math.ceil(d / PITCH)));
+    for (let i = 0; i < nMax; i++) {
+      const k = Math.min(i, nUse - 1);
+      const u0 = k / nUse, u1 = (k + 1) / nUse;
       const p0 = pt(u0), p1 = pt(u1);
       links[i].st.t = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2, z: (p0.z + p1.z) / 2 };
       const dir = { x: p1.x - p0.x, y: p1.y - p0.y, z: p1.z - p0.z };

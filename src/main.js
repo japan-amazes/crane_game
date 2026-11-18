@@ -74,14 +74,19 @@ export function buildRound(RAPIER, preset) {
 
   // 上がりきる前の判定
   // 獲得：景品の箱が網から取り出し口に落ちたら、その時点で確定
+  //   箱が落ち切らなくても、リングがフックに掛かって板が判定の高さ（board.liftJudge）以上に WIN_HOLD 秒持ち上がれば獲得（実機と同じ扱い）
   // はずれ（上昇開始から arm.judgeDelay 秒たってから）：リングの一番下がフックの頂点より上に抜けていて、
   //   板も浮いておらず網も傾いていない（もう掛かりようがない）
   // どちらとも言えないときは判定を続け、上がりきったら判定待ちのあと判定する
   const MISS_MARGIN = 0.5;  // cm
+  const WIN_HOLD = 1.0;     // 秒
+  let winTimer = 0;
   function earlyJudge() {
     if (shelf.fallen()) { arm.finish(); return; }
-    if (arm.phase !== PHASE.ASCEND) return;
     const lift = machine.lifted();
+    winTimer = lift >= preset.board.liftJudge ? winTimer + STEP : 0;
+    if (winTimer >= WIN_HOLD) { arm.finish(); return; }
+    if (arm.phase !== PHASE.ASCEND) return;
     if (arm.timer < (preset.arm.judgeDelay ?? 3)) return;
     if (lift > 0.3 || shelf.thetaDeg > 1) return;
     const c = ring.body.translation(), t = ring.top();
@@ -93,11 +98,12 @@ export function buildRound(RAPIER, preset) {
   }
 
   arm.onPhase = (next) => {
+    if (next === PHASE.ASCEND) winTimer = 0;
     if (next === PHASE.MOVE_X) round.swing.x = measureSwing(round);
     if (next === PHASE.MOVE_Z) round.swing.z = measureSwing(round);
     if (next === PHASE.ASCEND) round.hookRecord = machine.measure(ring, ringAxis(ring));
     if (next === PHASE.DONE) {
-      round.result = shelf.fallen() ? 'win' : 'lose';
+      round.result = shelf.fallen() || machine.lifted() >= preset.board.liftJudge ? 'win' : 'lose';
     }
     if (round.onPhase) round.onPhase(next);
   };
@@ -355,6 +361,11 @@ async function boot() {
   function again() {
     if (round && round.result === 'win') {
       goStage(progress.stage);
+      return;
+    }
+    // はずれでも板が持ち上がっていた（リングが掛かったまま・網が傾いたまま）ときは、続けずに台を元に戻す（店員さんが直すイメージ）
+    if (round && round.result === 'lose' && (round.machine.lifted() > 0.5 || round.shelf.thetaDeg > 1)) {
+      restart(true);
       return;
     }
     if (round && round.result === 'lose') {

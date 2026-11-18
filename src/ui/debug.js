@@ -32,7 +32,7 @@ const SCHEMA = [
   { path: 'chain.rubDamping', label: 'コマ同士のこすれ', min: 0, max: 100, step: 2, unit: '' },
   { path: 'chain.maxBendDeg', label: 'コマが曲がる上限', min: 10, max: 150, step: 5, unit: '°' },
   { group: 'リング' },
-  { path: 'ring.diameter', label: '直径（外径）', min: 3, max: 9, step: 0.1, unit: 'cm' },
+  { path: 'ring.diameter', label: '直径（外径）', min: 3, max: 10, step: 0.1, unit: 'cm' },
   { path: 'ring.thickness', label: '太さ', min: 0.1, max: 1.2, step: 0.05, unit: 'cm' },
   { path: 'ring.mass', label: '重さ', min: 5, max: 60, step: 1, unit: 'g' },
   { path: 'ring.yawDeg', label: '向き', min: 0, max: 180, step: 5, unit: '°' },

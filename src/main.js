@@ -264,6 +264,7 @@ async function boot() {
   }
   // パネル（横30cm×縦28cm）と同じ縦横比の絵：上の帯にカテゴリーと★、真ん中に大きく景品、下に景品名
   function prizePanelCanvas(it) {
+    if (theme === 'cool') return prizePanelCool(it);
     const W = 900, H = 840;
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
@@ -289,6 +290,60 @@ async function boot() {
     g.fillStyle = '#e8344e'; g.fillText(it.name, W / 2, H - 72, W - 60);
     return c;
   }
+  // クールの景品パネル：紺色の六角形（ハニカム）模様、青く光るふち、白い商品名に青いふち取り
+  function prizePanelCool(it) {
+    const W = 900, H = 840;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    const cat = prizeMod.CATEGORIES.find(x => x.id === it.cat);
+    const bg = g.createRadialGradient(W / 2, H * 0.45, 50, W / 2, H / 2, W * 0.75);
+    bg.addColorStop(0, '#123a7a'); bg.addColorStop(1, '#050d22');
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    // 六角形の模様
+    g.strokeStyle = 'rgba(80,150,255,0.18)'; g.lineWidth = 3;
+    const r = 26, hw = r * Math.sqrt(3);
+    for (let row = -1, y = 0; y < H + r; row++, y = row * r * 1.5) {
+      for (let x = (row % 2 ? hw / 2 : 0) - hw; x < W + hw; x += hw) {
+        g.beginPath();
+        for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+        g.closePath(); g.stroke();
+      }
+    }
+    // 青く光るふち
+    g.save(); g.shadowColor = '#2fb8ff'; g.shadowBlur = 30; g.strokeStyle = '#5fd0ff'; g.lineWidth = 14;
+    g.strokeRect(14, 14, W - 28, H - 28); g.restore();
+    // 上の見出し
+    g.font = `800 50px ${PANEL_FONT}, sans-serif`; g.textBaseline = 'middle';
+    g.fillStyle = '#9fdcff'; g.textAlign = 'left'; g.fillText(`// ${cat.name} //`, 50, 78);
+    g.textAlign = 'right'; g.fillStyle = '#5fd0ff'; g.fillText('★'.repeat(it.rarity), W - 46, 78);
+    const pic = 560;
+    g.save(); g.translate((W - pic) / 2, 120); prizeMod.paintPrize(g, it, pic); g.restore();
+    g.textAlign = 'center';
+    g.font = `800 76px ${PANEL_FONT}, sans-serif`;
+    g.lineJoin = 'round';
+    g.save(); g.shadowColor = '#2fb8ff'; g.shadowBlur = 24;
+    g.lineWidth = 14; g.strokeStyle = '#0b3d8f'; g.strokeText(it.name, W / 2, H - 82, W - 80);
+    g.restore();
+    g.fillStyle = '#ffffff'; g.fillText(it.name, W / 2, H - 82, W - 80);
+    return c;
+  }
+
+  // ---- 見た目のテーマ（キュート／クール）----
+  // 画面（CSS の body のクラス）と、景品パネル・箱の絵を切り替える。選んだテーマは保存して次も使う
+  const THEME_KEY = 'crane.theme.v1';
+  let theme = 'cute';
+  try { if (localStorage.getItem(THEME_KEY) === 'cool') theme = 'cool'; } catch { /* 保存できない環境 */ }
+  function applyTheme(t, redraw) {
+    theme = t;
+    document.body.classList.toggle('theme-cool', t === 'cool');
+    document.body.classList.toggle('theme-cute', t !== 'cool');
+    for (const b of document.querySelectorAll('#themeToggle button')) b.classList.toggle('on', b.dataset.theme === t);
+    try { localStorage.setItem(THEME_KEY, t); } catch { /* 保存できない環境 */ }
+    if (redraw && prize) view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
+  }
+  for (const b of document.querySelectorAll('#themeToggle button')) b.addEventListener('click', () => applyTheme(b.dataset.theme, true));
+  applyTheme(theme, false);
 
   // ---- クレジット・確定チケット ----
   // 1回のプレイ（はずれ後に続ける場合も）で1クレジット。①を押したときに使う

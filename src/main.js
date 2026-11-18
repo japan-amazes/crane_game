@@ -9,6 +9,7 @@ import { createChain, createChainDynamics } from './physics/chain.js';
 import { createRing, ringAxis } from './physics/ring.js';
 import { createHookMachine } from './machines/hook.js';
 import { createPrizeShelf, shelfHole, SHELF } from './machines/prizeShelf.js';
+import { applyChainRatio } from './game/chainRange.js';
 
 const LIB = {
   three: 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js',
@@ -121,12 +122,16 @@ export function stagePreset(base, spec, i) {
     const n = lv.values.length;
     const v = rand ? lv.values[Math.floor(rand() * n)] : lv.values[rest % n];
     rest = Math.floor(rest / n);
-    const ks = lv.path.split('.');
-    let o = p;
-    for (const k of ks.slice(0, -1)) o = o[k];
-    o[ks[ks.length - 1]] = v;
+    // path があればその1か所に、値が {パス: 値} ならまとめて設定する
+    const sets = lv.path ? { [lv.path]: v } : v;
+    for (const [path, val] of Object.entries(sets)) {
+      const ks = path.split('.');
+      let o = p;
+      for (const k of ks.slice(0, -1)) o = o[k];
+      o[ks[ks.length - 1]] = val;
+    }
   }
-  return p;
+  return applyChainRatio(p);   // チェーンの長さは、リングの直径と下降制限から決まる範囲の割合で
 }
 // 種（seed）から決まる乱数（mulberry32）
 function seededRandom(seed) {

@@ -1,12 +1,92 @@
 {
-  "note": "order が random：ステージごとに各項目の値をランダムに選ぶ（ステージ番号から決まるので、同じステージはいつも同じ設定）。seed を変えると全ステージの組み合わせが変わる。全ステージ数＝各項目の段階数の掛け算",
+  "note": "order が random：ステージごとに各項目の値をランダムに選ぶ（ステージ番号から決まるので、同じステージはいつも同じ設定）。seed を変えると全ステージの組み合わせが変わる。全ステージ数＝各項目の段階数の掛け算。values が {パス: 値} のときは、まとめて設定する（リングの径と太さは連動）。chain.lengthRatio は 0＝最短（リングの下のふちがちょうど板に着く）〜1＝最長（リングが板に寝て全周が着く）",
   "order": "random",
   "seed": 1,
   "levels": [
-    { "name": "初期位置", "path": "field.startSide", "values": ["left", "right"] },
-    { "name": "フックの向き", "path": "hook.yawDeg", "values": [90, 126, 162, 198, 234, 270, 306, 342, 18, 54] },
-    { "name": "チェーンの長さ", "path": "chain.length", "values": [15.0, 15.3, 15.6, 15.9, 16.2, 16.5, 16.8, 17.1, 17.4, 17.7] },
-    { "name": "リングの径", "path": "ring.diameter", "values": [5.0, 4.9, 4.8, 4.7, 4.6, 4.5, 4.4, 4.3, 4.2, 4.1] },
-    { "name": "リングの太さ", "path": "ring.thickness", "values": [0.80, 0.83, 0.86, 0.89, 0.92, 0.95, 0.98, 1.01, 1.04, 1.07] }
+    {
+      "name": "初期位置",
+      "path": "field.startSide",
+      "values": [
+        "left",
+        "right"
+      ]
+    },
+    {
+      "name": "フックの向き",
+      "path": "hook.yawDeg",
+      "values": [
+        90,
+        126,
+        162,
+        198,
+        234,
+        270,
+        306,
+        342,
+        18,
+        54
+      ]
+    },
+    {
+      "name": "チェーンの長さ（最短〜最長の割合）",
+      "path": "chain.lengthRatio",
+      "values": [
+        0.0,
+        0.1111,
+        0.2222,
+        0.3333,
+        0.4444,
+        0.5556,
+        0.6667,
+        0.7778,
+        0.8889,
+        1.0
+      ]
+    },
+    {
+      "name": "リング（径が大きいほど細い）",
+      "values": [
+        {
+          "ring.diameter": 4.8,
+          "ring.thickness": 0.9
+        },
+        {
+          "ring.diameter": 5.38,
+          "ring.thickness": 0.867
+        },
+        {
+          "ring.diameter": 5.96,
+          "ring.thickness": 0.833
+        },
+        {
+          "ring.diameter": 6.53,
+          "ring.thickness": 0.8
+        },
+        {
+          "ring.diameter": 7.11,
+          "ring.thickness": 0.767
+        },
+        {
+          "ring.diameter": 7.69,
+          "ring.thickness": 0.733
+        },
+        {
+          "ring.diameter": 8.27,
+          "ring.thickness": 0.7
+        },
+        {
+          "ring.diameter": 8.84,
+          "ring.thickness": 0.667
+        },
+        {
+          "ring.diameter": 9.42,
+          "ring.thickness": 0.633
+        },
+        {
+          "ring.diameter": 10.0,
+          "ring.thickness": 0.6
+        }
+      ]
+    }
   ]
 }

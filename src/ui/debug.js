@@ -4,6 +4,8 @@
 // 変更内容は端末に保存（localStorage）。完成版では非表示にする
 // =============================================================
 
+import { applyChainRatio } from '../game/chainRange.js';
+
 const STORE_KEY = 'crane.debug.overrides.v1';
 
 // path：プリセット内の場所 / label：表示名
@@ -193,7 +195,9 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
   function currentPreset() {
     const p = JSON.parse(JSON.stringify(basePreset));
     for (const [path, v] of Object.entries(overrides)) setPath(p, path, v);
-    return p;
+    // チェーンの長さを直接変えたら、ステージの「割合」より優先。そうでなければ、下降制限・リングを変えたときに割合から計算し直す
+    if ('chain.length' in overrides) p.chain.lengthRatio = null;
+    return applyChainRatio(p);
   }
 
   function toggle(force) {

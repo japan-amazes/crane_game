@@ -121,6 +121,12 @@
     font-size: 18px; color: var(--gold); text-shadow: 0 0 6px #ffd34d; }
   #btnX:not(:disabled)::before { content: '◀◀'; left: 16%; letter-spacing: -6px; }
   #btnX:not(:disabled)::after { content: '▶▶'; right: 16%; letter-spacing: -6px; }
+  /* ②：奥へ動くので上向きの矢印（▲を縦に2つ）を左右に */
+  #btnZ:not(:disabled)::before, #btnZ:not(:disabled)::after { content: '▲\A▲'; white-space: pre; line-height: 0.62;
+    position: absolute; top: 50%; transform: translateY(-50%);
+    font-size: 18px; color: var(--gold); text-shadow: 0 0 6px #ffd34d; }
+  #btnZ:not(:disabled)::before { left: 16%; }
+  #btnZ:not(:disabled)::after { right: 16%; }
   .hold.on { transform: translateY(3px); box-shadow: inset 0 3px 0 #ffffff55, 0 2px 0 #a3185a, 0 0 18px #ffd34d; }
   .hold:disabled { opacity: 0.6; }
 
@@ -243,7 +249,8 @@
   body.theme-cool .hold { color: #8e99ab; border-color: #4a5466; background: linear-gradient(#2a313d, #12161e); box-shadow: inset 0 2px 0 #ffffff22, 0 5px 0 #000; }
   body.theme-cool .hold:not(:disabled) { color: #fff; border-color: #9fe3ff;
     background: linear-gradient(#2f9cff, #0a4fc0); box-shadow: inset 0 3px 0 #ffffff55, 0 5px 0 #06275f, 0 0 16px #2fb8ffaa; }
-  body.theme-cool #btnX:not(:disabled)::before, body.theme-cool #btnX:not(:disabled)::after { color: #bff0ff; text-shadow: 0 0 6px #5fd0ff; }
+  body.theme-cool #btnX:not(:disabled)::before, body.theme-cool #btnX:not(:disabled)::after,
+  body.theme-cool #btnZ:not(:disabled)::before, body.theme-cool #btnZ:not(:disabled)::after { color: #bff0ff; text-shadow: 0 0 6px #5fd0ff; }
   body.theme-cool .hold.on { box-shadow: inset 0 3px 0 #ffffff55, 0 2px 0 #06275f, 0 0 22px #5fd0ff; }
 
   body.theme-cool #themeToggle { background: #10141ccc; border-color: #5b6578; }

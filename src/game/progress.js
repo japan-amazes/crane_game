@@ -6,7 +6,9 @@ import { CATEGORIES, findItem, DUP_POINTS } from './prizes.js';
 
 const KEY = 'crane.progress.v1';
 const OLD_STAGE_KEY = 'crane.stage.v1';
-export const DAILY_CREDITS = 5;
+export const DAILY_CREDITS = 10;          // 1日1回（その日最初に開いたとき）もらえる
+export const REGEN_MAX = 10;              // 時間で回復するのはここまで
+export const REGEN_MS = 6 * 60 * 1000;    // 6分で1クレジット回復（0から1時間で満タン）
 
 function today() {
   const d = new Date();
@@ -23,7 +25,8 @@ export function createProgress(stageTotal) {
     tickets: 0,
     completed: [],     // コンプリート済みのカテゴリーID（ごほうびは1回だけ）
     credits: DAILY_CREDITS,
-    creditDay: today()
+    creditDay: today(),
+    regenAt: Date.now()   // 時間の回復を数え始めた時刻
   };
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -44,10 +47,27 @@ export function createProgress(stageTotal) {
     try { localStorage.setItem(KEY, JSON.stringify(st)); } catch { /* 保存できない環境 */ }
   }
 
-  // 日付が変わっていたらクレジットを戻す（前の日の残りは持ち越さない）
+  if (!Number.isFinite(st.regenAt)) st.regenAt = Date.now();
+
+  // クレジットの更新
+  //   10より少ないときは、6分ごとに1ずつ回復（閉じていた間の分もまとめて）。10以上のときは回復しない
+  //   日付が変わっていたら、1日1回の分を足す（残りはそのまま持ち越す）
   function refreshCredits() {
-    const d = today();
-    if (st.creditDay !== d) { st.creditDay = d; st.credits = DAILY_CREDITS; save(); }
+    let changed = false;
+    const d = today(), now = Date.now();
+    if (st.credits >= REGEN_MAX) {
+      if (st.regenAt !== now) { st.regenAt = now; changed = true; }   // 満タンの間は数え始めない
+    } else {
+      const n = Math.floor((now - st.regenAt) / REGEN_MS);
+      if (n > 0) {
+        st.credits = Math.min(REGEN_MAX, st.credits + n);
+        st.regenAt = st.credits >= REGEN_MAX ? now : st.regenAt + n * REGEN_MS;
+        changed = true;
+      }
+    }
+    // 1日1回の分は、時間の回復のあとに足す（閉じていた間の回復を先に済ませる）
+    if (st.creditDay !== d) { st.creditDay = d; st.credits += DAILY_CREDITS; changed = true; if (st.credits >= REGEN_MAX) st.regenAt = now; }
+    if (changed) save();
   }
   refreshCredits();
 
@@ -57,6 +77,11 @@ export function createProgress(stageTotal) {
     get points() { return st.points; },
     get tickets() { return st.tickets; },
     get credits() { refreshCredits(); return st.credits; },
+    // 次の回復までの残り（ミリ秒）。10以上で回復しないときは null
+    get regenRemain() {
+      refreshCredits();
+      return st.credits >= REGEN_MAX ? null : Math.max(0, REGEN_MS - (Date.now() - st.regenAt));
+    },
     isCleared(i) { return clearedSet.has(i); },
     clearedCount() { return clearedSet.size; },
     // 先頭より前で、まだクリアしていないステージ（スキップしたもの）

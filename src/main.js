@@ -352,10 +352,18 @@ async function boot() {
   let ticketArmed = false;   // 確定チケットを使う予定（①を押したときに消費）
   let ticketUsed = false;    // このプレイで確定チケットを使った
   const hud = document.getElementById('hud');
+  // 次の回復までの残り時間（10以上・無制限のときは出さない）
+  function regenText(unl) {
+    const ms = unl ? null : progress.regenRemain;
+    if (ms == null) return '';
+    const s = Math.ceil(ms / 1000);
+    return ` <small class="hud-r">あと ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}</small>`;
+  }
+  setInterval(() => { if (round) showHud(); }, 1000);   // 残り時間と回復を1秒ごとに表示しなおす
   function showHud() {
     const unl = debug.unlimited;
     hud.innerHTML = `
-      <span class="hud-c">クレジット <b>${unl ? '∞' : progress.credits}</b></span>
+      <span class="hud-c">クレジット <b>${unl ? '∞' : progress.credits}</b>${regenText(unl)}</span>
       <span class="hud-t">確定チケット <b>${progress.tickets}</b></span>
       <span class="hud-p"><b>${progress.points}</b>pt</span>`;
     btnTicket.disabled = round.arm.phase !== PHASE.READY || paid || (progress.tickets <= 0 && !ticketArmed);

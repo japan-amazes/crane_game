@@ -82,7 +82,7 @@ export function createScreens({ progress, onPickStage }) {
   // ---- 広告（仮）----
   // 本物の広告は、アプリにする段階で差し替える。今は試技中なので待ち時間なし（AD_SECONDS を3にすると3秒の仮画面）
   const AD_SECONDS = 0;
-  const AD_CREDITS = 5;   // 広告1回で増えるクレジット
+  const AD_CREDITS = 10;   // 広告1回で増えるクレジット（回数の制限なし）
   function showAd(onDone) {
     let t = AD_SECONDS;
     open(`
@@ -107,7 +107,7 @@ export function createScreens({ progress, onPickStage }) {
   function showNoCredit(onDone) {
     open(`
       <div class="m-head"><b>クレジットがありません</b><button class="m-x" data-close>×</button></div>
-      <div class="m-sum">毎日0時に5クレジットに戻ります。広告を見ると${AD_CREDITS}クレジット追加できます</div>
+      <div class="m-sum">6分ごとに1クレジット回復します（10まで）。広告を見ると${AD_CREDITS}クレジット追加できます</div>
       <button class="big" data-ad>広告を見て ＋${AD_CREDITS} クレジット</button>`);
     root.querySelector('[data-ad]').addEventListener('click', () => showAd(onDone));
   }

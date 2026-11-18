@@ -1,13 +1,31 @@
 {
   "note": "景品の画像（512×512・背景透明の WebP）。ここに書いたIDの画像だけを読み込み、無い品はプログラムの絵（prizeArt.js）を使う",
   "images": [
+    "apple",
+    "banana",
     "candy",
+    "carrot",
     "chips",
     "choco",
     "chocoset",
+    "clock",
     "cookie",
+    "detergent",
     "donut",
+    "fruitbasket",
+    "grape",
     "gummy",
-    "senbei"
+    "kettle",
+    "melon",
+    "mug",
+    "onion",
+    "potato",
+    "senbei",
+    "tissue",
+    "toilet",
+    "tomato",
+    "toothbrush",
+    "towel",
+    "umbrella"
   ]
 }

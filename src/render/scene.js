@@ -4,6 +4,8 @@
 // カメラ：正面（front）/ フック付近の拡大（zoom）
 // =============================================================
 
+import * as cabinetMod from './cabinet.js';
+
 export function createScene(THREE, canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -120,7 +122,10 @@ export function createScene(THREE, canvas) {
     else if (p.type === 'curblink') geo = chainLinkGeometry(p.length, p.width, p.wire, p.twist);
     else if (p.type === 'splitring') geo = splitRingGeometry(p.radius, p.wire, p.gap);
     let mat;
-    if (p.finish === 'chrome') {
+    if (p.floor) {
+      // 台の上面（床）：テーマ別の材質
+      mat = cabinetMod.floorMaterial(THREE, theme, chromeEnv());
+    } else if (p.finish === 'chrome') {
       // メッキ調（リング・チェーン・つなぎのリング）：強い光沢＋筐体照明の写り込み
       mat = new THREE.MeshStandardMaterial({ color: p.color, metalness: 1, roughness: 0.14, envMap: chromeEnv(), envMapIntensity: 1.2 });
     } else if (p.plastic) {
@@ -143,6 +148,7 @@ export function createScene(THREE, canvas) {
       });
     }
     const mesh = new THREE.Mesh(geo, mat);
+    if (p.floor) mesh.userData.floor = true;
     mesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
     if (p.quat) mesh.quaternion.set(p.quat.x, p.quat.y, p.quat.z, p.quat.w);
     if (p.rotY) mesh.rotation.y = p.rotY;
@@ -206,7 +212,7 @@ export function createScene(THREE, canvas) {
       scene.remove(t.group);
       t.group.traverse(o => {
         if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
-        if (o.material) for (const m of [].concat(o.material)) { if (m.map && m.map !== netTex) m.map.dispose(); m.dispose(); }
+        if (o.material) for (const m of [].concat(o.material)) { if (m.map && m.map !== netTex && !m.map.userData.keep) m.map.dispose(); m.dispose(); }
       });
     }
     tracked = [];
@@ -344,94 +350,33 @@ export function createScene(THREE, canvas) {
     renderer.render(scene, camera);
   }
 
-  // 筐体：背面はレンガ風の壁紙、左右はガラス（見た目だけ。当たり判定はなし）
-  //   背面は景品パネルのすぐ後ろ、左右のガラスは網の棚と取り出し口より外側に置く
-  const CAB = { halfW: 20, height: 58, front: 14 };
+  // 筐体の飾り（テーマ別。cabinet.js）。フィールドの奥行きかテーマが変わったときだけ作り直す
+  let theme = 'cute';
   let cabinet = null, cabinetKey = '';
-  // レンガ風の壁紙の絵：横4個×縦8段（段ごとに半個ずらす）。レンガごとに色を少し変え、目地は明るいグレー
-  let brickTex = null;
-  function brickTexture() {
-    if (brickTex) return brickTex;
-    const W = 512, H = 410, cols = 4, rows = 8;
-    const bw = W / cols, bh = H / rows, gap = 5;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const g = c.getContext('2d');
-    g.fillStyle = '#cfc6bb'; g.fillRect(0, 0, W, H);   // 目地
-    let seed = 7;
-    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    for (let r = 0; r < rows; r++) {
-      const off = r % 2 ? bw / 2 : 0;
-      for (let k = -1; k <= cols; k++) {
-        const x = k * bw + off + gap / 2, y = r * bh + gap / 2, w = bw - gap, h = bh - gap;
-        const base = [[168, 74, 52], [150, 66, 48], [182, 88, 60], [139, 58, 42], [160, 80, 58]][Math.floor(rnd() * 5)];
-        const v = 0.9 + rnd() * 0.2;
-        const col = base.map(n => Math.min(255, Math.round(n * v)));
-        const grad = g.createLinearGradient(0, y, 0, y + h);
-        grad.addColorStop(0, `rgb(${col.map(n => Math.min(255, n + 18)).join(',')})`);
-        grad.addColorStop(1, `rgb(${col.map(n => Math.max(0, n - 18)).join(',')})`);
-        g.fillStyle = grad;
-        g.beginPath(); g.roundRect(x, y, w, h, 3); g.fill();
-        // ざらつき
-        for (let i = 0; i < 40; i++) {
-          g.fillStyle = `rgba(${rnd() < 0.5 ? '255,230,210' : '60,25,15'},${0.08 + rnd() * 0.1})`;
-          g.fillRect(x + rnd() * w, y + rnd() * h, 2, 2);
-        }
-      }
-    }
-    brickTex = new THREE.CanvasTexture(c);
-    brickTex.colorSpace = THREE.SRGBColorSpace;
-    brickTex.wrapS = brickTex.wrapT = THREE.RepeatWrapping;
-    brickTex.anisotropy = 4;
-    return brickTex;
-  }
   function setCabinet(field) {
-    const back = (field ? field.zBack : -10) - 4.6;
-    const key = String(back);
+    const key = `${field ? field.zBack : -10}|${theme}`;
     if (cabinet && key === cabinetKey) return;
     if (cabinet) {
       scene.remove(cabinet);
-      cabinet.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });   // レンガの絵は使い回すので残す
+      cabinet.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) for (const m of [].concat(o.material)) m.dispose();   // テクスチャは使い回すので残す
+      });
     }
     cabinetKey = key;
-    cabinet = new THREE.Group();
-    const depth = CAB.front - back;
-    const zc = (CAB.front + back) / 2;
-    // 背面のレンガ風の壁紙（1枚の絵をくり返して貼る。レンガ1個＝約6×2.4cm）
-    const brick = brickTexture();
-    brick.repeat.set(CAB.halfW * 2 / 24, CAB.height / 19.2);
-    const wall = new THREE.Mesh(
-      new THREE.BoxGeometry(CAB.halfW * 2, CAB.height, 0.6),
-      new THREE.MeshStandardMaterial({ map: brick, emissive: 0xffffff, emissiveMap: brick, emissiveIntensity: 0.35, roughness: 0.9, metalness: 0 })   // 照明が弱くても色が沈まないよう少し自発光
-    );
-    wall.position.set(0, CAB.height / 2 - 2, back - 0.3);
-    wall.receiveShadow = true;
-    cabinet.add(wall);
-    // 左右のガラス（うっすら青く、照明が映り込む）と、ふちの金属フレーム
-    const glassMat = new THREE.MeshStandardMaterial({
-      color: 0xd8ecff, transparent: true, opacity: 0.14, roughness: 0.05, metalness: 0.2,
-      envMap: chromeEnv(), envMapIntensity: 0.9, depthWrite: false, side: THREE.DoubleSide
-    });
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x8a919c, metalness: 0.8, roughness: 0.3, envMap: chromeEnv() });
-    for (const sx of [-1, 1]) {
-      const glass = new THREE.Mesh(new THREE.PlaneGeometry(depth, CAB.height), glassMat);
-      glass.rotation.y = Math.PI / 2;
-      glass.position.set(sx * CAB.halfW, CAB.height / 2 - 2, zc);
-      glass.renderOrder = 10;
-      cabinet.add(glass);
-      // フレーム（手前・奥の縦、上・下の横）
-      for (const z of [back, CAB.front]) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.8, CAB.height, 0.8), frameMat);
-        post.position.set(sx * CAB.halfW, CAB.height / 2 - 2, z);
-        cabinet.add(post);
-      }
-      for (const y of [-2, CAB.height - 2]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, depth), frameMat);
-        rail.position.set(sx * CAB.halfW, y, zc);
-        cabinet.add(rail);
-      }
-    }
+    cabinet = cabinetMod.buildCabinet(THREE, { field, theme, envMap: chromeEnv() });
     scene.add(cabinet);
+  }
+  // テーマを切り替える：背景・筐体・床
+  function setTheme(t) {
+    theme = t === 'cool' ? 'cool' : 'cute';
+    scene.background = new THREE.Color(cabinetMod.backgroundColor(theme));
+    if (round) {
+      setCabinet(round.preset.field);
+      for (const tr of tracked) tr.group.traverse(o => {
+        if (o.userData.floor) { o.material.dispose(); o.material = cabinetMod.floorMaterial(THREE, theme, chromeEnv()); }
+      });
+    }
   }
 
   // 景品パネル：板の後ろ（移動範囲の奥より後ろ）に立てる。絵は呼び出し側が canvas で渡す
@@ -463,6 +408,7 @@ export function createScene(THREE, canvas) {
     setRound,
     setPrizePanel,
     setPrizeBoxArt(art) { prizeBoxArt = art; },
+    setTheme,
     savePrev,
     setView,
     render,

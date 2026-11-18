@@ -57,7 +57,7 @@ export function createTable(RAPIER, world, preset, hole = null) {
         .setRestitution(0.05)
         .setCollisionGroups(groups(GROUP.TABLE, GROUP.BOARD | GROUP.RING | GROUP.CHAIN | GROUP.PRIZE)),
       body);
-    parts.push({ type: 'box', size: [b - a, 2, d - c], pos: [cx, -1, cz], color: 0x2a2f3a });
+    parts.push({ type: 'box', size: [b - a, 2, d - c], pos: [cx, -1, cz], color: 0x2a2f3a, floor: true });   // 床（見た目はテーマ別）
   }
   if (hole) {
     // 穴の底（落ちた箱を受け止める）と、穴の中の暗い壁

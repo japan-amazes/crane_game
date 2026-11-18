@@ -44,18 +44,18 @@
     background: linear-gradient(#2a1745e6, transparent); pointer-events: none; }
   #stageLabel { position: absolute; left: calc(10px + var(--sal)); top: calc(36px + var(--sat));
     padding: 4px 34px 4px 14px; border-radius: 999px;
-    font-size: 16px; font-weight: 800; letter-spacing: 0.04em; color: var(--gold);
+    font-size: 15px; font-weight: 800; letter-spacing: 0.04em; color: var(--gold);
     background: linear-gradient(#5b2c8f, #2f1655); border: 2px solid var(--gold);
     box-shadow: 0 0 8px #ffd34d99, inset 0 1px 0 #ffffff44; pointer-events: none; }
   #stageLabel::after { content: '★'; position: absolute; right: 9px; top: 50%; transform: translateY(-52%);
     font-size: 20px; color: var(--gold); text-shadow: 0 0 6px #ffd34d; }
   #btnDebug { position: absolute; right: calc(10px + var(--sar)); top: calc(34px + var(--sat));
     border-radius: 999px; padding: 6px 14px; }
-  #hud { position: absolute; left: calc(10px + var(--sal)); top: calc(74px + var(--sat));
+  #hud { position: absolute; left: calc(10px + var(--sal)); top: calc(72px + var(--sat));
     display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sub); pointer-events: none; }
   #hud span { background: linear-gradient(#4a2780ee, #2f1655ee); border: 1.5px solid #8a63d2; border-radius: 999px;
     padding: 2px 10px; align-self: flex-start; box-shadow: 0 1px 4px #0006; }
-  #hud b { color: #fff; font-size: 15px; }
+  #hud b { color: #fff; font-size: 14px; }
 
   /* ---- 結果 ---- */
   #result { position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 14px;
@@ -75,24 +75,25 @@
   .res-btns #btnSkip { flex: 1; font-size: 13px; white-space: nowrap; padding: 10px 8px; }
 
   /* ---- 操作パネル ---- */
-  #controls { position: relative; padding: 12px calc(12px + var(--sar)) calc(30px + env(safe-area-inset-bottom)) calc(12px + var(--sal));
+  /* 操作パネルは小さめにして、筐体の表示を広く取る（画面の高さが低い機種ではさらに小さく） */
+  #controls { position: relative; padding: 8px calc(10px + var(--sar)) calc(16px + env(safe-area-inset-bottom)) calc(10px + var(--sal));
     background: linear-gradient(#3d1f66, #2a1745); border-top: 3px solid #ff9fd0;
     box-shadow: 0 -4px 14px #ff6fae55; overflow: hidden; }
   /* 下の雲と星の飾り */
-  #controls::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 34px; pointer-events: none;
+  #controls::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 16px; pointer-events: none;
     background:
-      radial-gradient(circle at 8% 120%, #ffc6e4 0 26px, transparent 27px),
-      radial-gradient(circle at 24% 140%, #ffb3da 0 30px, transparent 31px),
-      radial-gradient(circle at 42% 130%, #ffc6e4 0 28px, transparent 29px),
-      radial-gradient(circle at 60% 145%, #ffb3da 0 32px, transparent 33px),
-      radial-gradient(circle at 78% 125%, #ffc6e4 0 27px, transparent 28px),
-      radial-gradient(circle at 95% 140%, #ffb3da 0 30px, transparent 31px);
+      radial-gradient(circle at 8% 130%, #ffc6e4 0 14px, transparent 15px),
+      radial-gradient(circle at 24% 150%, #ffb3da 0 17px, transparent 18px),
+      radial-gradient(circle at 42% 140%, #ffc6e4 0 15px, transparent 16px),
+      radial-gradient(circle at 60% 155%, #ffb3da 0 18px, transparent 19px),
+      radial-gradient(circle at 78% 135%, #ffc6e4 0 15px, transparent 16px),
+      radial-gradient(circle at 95% 150%, #ffb3da 0 17px, transparent 18px);
     opacity: 0.9; }
-  #controls::before { content: '★　　　　✦　　　　★　　　　✦　　　　★'; position: absolute; left: 0; right: 0; bottom: 6px;
-    text-align: center; font-size: 13px; color: #ffe27a; text-shadow: 0 0 6px #ffd34d; pointer-events: none; z-index: 1;
+  #controls::before { content: '★　　　　✦　　　　★　　　　✦　　　　★'; position: absolute; left: 0; right: 0; bottom: 1px;
+    text-align: center; font-size: 9px; color: #ffe27a; text-shadow: 0 0 6px #ffd34d; pointer-events: none; z-index: 1;
     white-space: nowrap; overflow: hidden; }
 
-  button { font: inherit; font-size: 15px; font-weight: 800; padding: 9px 10px; border-radius: 999px;
+  button { font: inherit; font-size: 14px; font-weight: 800; padding: 7px 8px; border-radius: 999px; white-space: nowrap;
     border: 2px solid #8a63d2; color: #fff;
     background: linear-gradient(#6a3fb0, #4a2780); box-shadow: inset 0 2px 0 #ffffff33, 0 3px 0 #23103f; }
   button:active { transform: translateY(1px); }
@@ -100,15 +101,16 @@
   button.big { font-size: 17px; padding: 12px; color: #fff; border: 2px solid #ffd1e8;
     background: linear-gradient(#ff7ab8, #ff3f8e); box-shadow: inset 0 2px 0 #ffffff66, 0 3px 0 #a3185a, 0 0 10px #ff6fae88; }
 
-  .views { display: flex; gap: 8px; margin-bottom: 10px; }
+  .views { display: flex; gap: 6px; margin-bottom: 8px; }
+  .views button { padding: 6px 8px; font-size: 14px; }
   .views button { flex: 1; }
   .views button.active { background: linear-gradient(#ff7ab8, #ff3f8e); border-color: var(--gold);
     box-shadow: inset 0 2px 0 #ffffff66, 0 3px 0 #a3185a, 0 0 10px #ffd34d99; }
   .views #btnPeek.active { background: linear-gradient(#ffe27a, #f6b51e); color: #5a2a00; border-color: #fff3b8; }
   .views button:disabled { opacity: 0.45; }
 
-  .main { display: flex; gap: 12px; }
-  .hold { position: relative; flex: 1; height: 84px; font-size: 38px; border-radius: 22px; touch-action: none;
+  .main { display: flex; gap: 10px; }
+  .hold { position: relative; flex: 1; height: clamp(50px, 7.6vh, 64px); font-size: clamp(26px, 4.2vh, 34px); border-radius: 20px; touch-action: none;
     color: #e9dcff; border: 2px solid #9a74e0;
     background: linear-gradient(#6a3fb0, #42226f); box-shadow: inset 0 3px 0 #ffffff33, 0 5px 0 #1f0e38; }
   .hold:not(:disabled) { color: #fff; border-color: #ffd1e8;
@@ -120,12 +122,22 @@
   .hold.on { transform: translateY(3px); box-shadow: inset 0 3px 0 #ffffff55, 0 2px 0 #a3185a, 0 0 18px #ffd34d; }
   .hold:disabled { opacity: 0.6; }
 
-  .row3 { display: flex; gap: 8px; margin-top: 12px; }
+  .row3 { display: flex; gap: 6px; margin-top: 8px; }
   .row3 button { flex: 1; }
-  .sounds { display: flex; gap: 8px; margin-top: 8px; }
-  .sounds button { flex: 1; font-size: 14px; padding: 7px 8px; }
+  .sounds { display: flex; gap: 6px; margin-top: 6px; }
+  .sounds button { flex: 1; font-size: 13px; padding: 5px 6px; }
   .sounds button.active { color: #fff; }
   #btnTicket.active { background: linear-gradient(#ffe27a, #f6b51e); color: #5a2a00; border-color: #fff3b8; }
+
+  /* 画面の高さが低い機種（SE など）では、さらに詰める */
+  @media (max-height: 700px) {
+    .views { margin-bottom: 6px; }
+    .row3 { margin-top: 6px; }
+    .sounds { margin-top: 5px; }
+    button { font-size: 13px; padding: 5px 6px; }
+    .views button { padding: 5px 6px; font-size: 13px; }
+    .sounds button { font-size: 12px; padding: 4px 6px; }
+  }
 
   /* ---- モーダル（マイボックス・ステージ・広告） ---- */
   #modal { position: fixed; inset: 0; z-index: 20; background: #1a0b2fb3; display: flex; align-items: center; justify-content: center; padding: 12px; }
@@ -212,7 +224,7 @@
 
   body.theme-cool #controls { background: linear-gradient(#141923, #05070c); border-top: 2px solid #5fd0ff;
     box-shadow: 0 -4px 16px #2fb8ff66; }
-  body.theme-cool #controls::after { height: 26px; opacity: 1;
+  body.theme-cool #controls::after { height: 14px; opacity: 1;
     background:
       linear-gradient(to top right, transparent 49%, #2fb8ff 50%, transparent 53%) left bottom / 50% 100% no-repeat,
       linear-gradient(to top left, transparent 49%, #2fb8ff 50%, transparent 53%) right bottom / 50% 100% no-repeat;
@@ -287,6 +299,19 @@
   // iPhone の Safari は user-scalable=no を無視するので、ダブルタップとピンチでの拡大を止める
   document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
   for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+  // 前に拡大された状態が残っていたら、1倍に戻す（表示の設定を一度書き換えると Safari が拡大を解除する）
+  function resetZoom() {
+    const vv = window.visualViewport;
+    if (vv && vv.scale <= 1.01) return;
+    const m = document.querySelector('meta[name=viewport]');
+    const c = m.getAttribute('content');
+    m.setAttribute('content', c.replace('maximum-scale=1', 'maximum-scale=1.0001'));
+    setTimeout(() => m.setAttribute('content', c), 60);
+  }
+  window.addEventListener('load', resetZoom);
+  window.addEventListener('orientationchange', () => setTimeout(resetZoom, 300));
+  document.addEventListener('focusout', () => setTimeout(resetZoom, 100));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => setTimeout(resetZoom, 200));
 </script>
 <script type="module" src="./src/main.js"></script>
 </body>

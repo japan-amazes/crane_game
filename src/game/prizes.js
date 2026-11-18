@@ -7,8 +7,8 @@
 import { paintArt } from './prizeArt.js';
 
 export const RARITY_WEIGHT = { 1: 55, 2: 30, 3: 11, 4: 4 };   // 出やすさ（%）
-export const DUP_POINTS = { 1: 1, 2: 2, 3: 5, 4: 10 };        // ダブりでもらえるポイント
-export const EXCHANGE_COST = { 1: 10, 2: 20, 3: 50, 4: 100 }; // 交換に必要なポイント
+export const DUP_POINTS = { 1: 10, 2: 20, 3: 30, 4: 40 };     // ダブりでもらえるポイント（星の数×10）
+export const EXCHANGE_COST = { 1: 30, 2: 50, 3: 70, 4: 100 }; // 交換に必要なポイント
 
 // shape：絵の形 / c：主な色 / c2：差し色 / label：絵の中のラベル文字
 export const CATEGORIES = [

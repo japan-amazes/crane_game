@@ -344,26 +344,65 @@ export function createScene(THREE, canvas) {
     renderer.render(scene, camera);
   }
 
-  // 筐体：背面は白いパネル、左右はガラス（見た目だけ。当たり判定はなし）
+  // 筐体：背面はレンガ風の壁紙、左右はガラス（見た目だけ。当たり判定はなし）
   //   背面は景品パネルのすぐ後ろ、左右のガラスは網の棚と取り出し口より外側に置く
   const CAB = { halfW: 20, height: 58, front: 14 };
   let cabinet = null, cabinetKey = '';
+  // レンガ風の壁紙の絵：横4個×縦8段（段ごとに半個ずらす）。レンガごとに色を少し変え、目地は明るいグレー
+  let brickTex = null;
+  function brickTexture() {
+    if (brickTex) return brickTex;
+    const W = 512, H = 410, cols = 4, rows = 8;
+    const bw = W / cols, bh = H / rows, gap = 5;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.fillStyle = '#cfc6bb'; g.fillRect(0, 0, W, H);   // 目地
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let r = 0; r < rows; r++) {
+      const off = r % 2 ? bw / 2 : 0;
+      for (let k = -1; k <= cols; k++) {
+        const x = k * bw + off + gap / 2, y = r * bh + gap / 2, w = bw - gap, h = bh - gap;
+        const base = [[168, 74, 52], [150, 66, 48], [182, 88, 60], [139, 58, 42], [160, 80, 58]][Math.floor(rnd() * 5)];
+        const v = 0.9 + rnd() * 0.2;
+        const col = base.map(n => Math.min(255, Math.round(n * v)));
+        const grad = g.createLinearGradient(0, y, 0, y + h);
+        grad.addColorStop(0, `rgb(${col.map(n => Math.min(255, n + 18)).join(',')})`);
+        grad.addColorStop(1, `rgb(${col.map(n => Math.max(0, n - 18)).join(',')})`);
+        g.fillStyle = grad;
+        g.beginPath(); g.roundRect(x, y, w, h, 3); g.fill();
+        // ざらつき
+        for (let i = 0; i < 40; i++) {
+          g.fillStyle = `rgba(${rnd() < 0.5 ? '255,230,210' : '60,25,15'},${0.08 + rnd() * 0.1})`;
+          g.fillRect(x + rnd() * w, y + rnd() * h, 2, 2);
+        }
+      }
+    }
+    brickTex = new THREE.CanvasTexture(c);
+    brickTex.colorSpace = THREE.SRGBColorSpace;
+    brickTex.wrapS = brickTex.wrapT = THREE.RepeatWrapping;
+    brickTex.anisotropy = 4;
+    return brickTex;
+  }
   function setCabinet(field) {
     const back = (field ? field.zBack : -10) - 4.6;
     const key = String(back);
     if (cabinet && key === cabinetKey) return;
     if (cabinet) {
       scene.remove(cabinet);
-      cabinet.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+      cabinet.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });   // レンガの絵は使い回すので残す
     }
     cabinetKey = key;
     cabinet = new THREE.Group();
     const depth = CAB.front - back;
     const zc = (CAB.front + back) / 2;
-    // 背面の白いパネル
+    // 背面のレンガ風の壁紙（1枚の絵をくり返して貼る。レンガ1個＝約6×2.4cm）
+    const brick = brickTexture();
+    brick.repeat.set(CAB.halfW * 2 / 24, CAB.height / 19.2);
     const wall = new THREE.Mesh(
       new THREE.BoxGeometry(CAB.halfW * 2, CAB.height, 0.6),
-      new THREE.MeshStandardMaterial({ color: 0xf4f5f7, emissive: 0x5a5d63, roughness: 0.7, metalness: 0 })   // 照明が弱くても白く見えるよう少し自発光
+      new THREE.MeshStandardMaterial({ map: brick, emissive: 0xffffff, emissiveMap: brick, emissiveIntensity: 0.35, roughness: 0.9, metalness: 0 })   // 照明が弱くても色が沈まないよう少し自発光
     );
     wall.position.set(0, CAB.height / 2 - 2, back - 0.3);
     wall.receiveShadow = true;
@@ -401,8 +440,9 @@ export function createScene(THREE, canvas) {
     if (!prizePanel) {
       const W = 30, H = 28;   // 台の奥の壁全体を覆う大きさ
       prizePanel = new THREE.Group();
-      const back = new THREE.Mesh(new THREE.BoxGeometry(W + 0.8, H + 0.8, 0.4), new THREE.MeshStandardMaterial({ color: 0x2a2f3a, metalness: 0.3, roughness: 0.6 }));
-      back.position.z = -0.25;
+      // 縁取りなし：絵の板だけ（裏は薄い白い板）
+      const back = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.3), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
+      back.position.z = -0.2;
       const face = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ toneMapped: false }));
       prizePanel.add(back, face);
       prizePanel.userData.face = face;

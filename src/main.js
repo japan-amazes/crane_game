@@ -114,6 +114,8 @@ export function buildRound(RAPIER, preset) {
   return round;
 }
 
+const PANEL_FONT = '"M PLUS Rounded 1c"';   // 景品パネルの商品名のフォント（index.html で読み込む）
+
 // ステージの設定：基本設定に、各項目の値を重ねる
 // order が "random"：ステージ番号から決まるランダムで、各項目の値を選ぶ（同じステージはいつも同じ設定）
 // それ以外：ステージ番号を各項目の段階に分けて順に変える（最初の項目がいちばん早く変わる）
@@ -213,6 +215,13 @@ async function boot() {
     restart(false);
   }
   await prizeMod.loadPrizeImages();   // 景品の画像（あるものだけ）
+  // 景品パネルの商品名のフォントを読み込んでおく（最大3秒。間に合わなければ普通のフォントで描く）
+  try {
+    await Promise.race([
+      document.fonts.load(`800 76px ${PANEL_FONT}`, prizeMod.ALL_ITEMS.map(it => it.name).join('')),
+      new Promise(r => setTimeout(r, 3000))
+    ]);
+  } catch { /* フォントが使えない環境 */ }
   const view = sceneMod.createScene(THREE, document.getElementById('view'));
   const screens = screensMod.createScreens({ progress, onPickStage: i => goStage(i) });
 
@@ -256,8 +265,15 @@ async function boot() {
     g.textAlign = 'right'; g.fillStyle = '#ffd166'; g.fillText('★'.repeat(it.rarity), W - 26, 47);
     const pic = 600;
     g.save(); g.translate((W - pic) / 2, 100); prizeMod.paintPrize(g, it, pic); g.restore();
-    g.fillStyle = '#1f2533'; g.textAlign = 'center'; g.font = 'bold 72px sans-serif';
-    g.fillText(it.name, W / 2, H - 70, W - 40);
+    // 商品名：ポップな丸ゴシック（M PLUS Rounded 1c 極太）、白とカテゴリー色の二重のふち取り＋影
+    g.textAlign = 'center';
+    g.font = `800 76px ${PANEL_FONT}, sans-serif`;
+    g.lineJoin = 'round';
+    g.shadowColor = 'rgba(0,0,0,0.35)'; g.shadowOffsetY = 6; g.shadowBlur = 6;
+    g.lineWidth = 18; g.strokeStyle = '#ffffff'; g.strokeText(it.name, W / 2, H - 72, W - 60);
+    g.shadowColor = 'transparent';
+    g.lineWidth = 8; g.strokeStyle = cat.color; g.strokeText(it.name, W / 2, H - 72, W - 60);
+    g.fillStyle = '#e8344e'; g.fillText(it.name, W / 2, H - 72, W - 60);
     return c;
   }
 

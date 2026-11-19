@@ -59,6 +59,8 @@ export function buildRound(RAPIER, preset) {
     forceDrop: false, // 確定チケット：網を強制的に傾けて箱を落とす
     swing: {},        // ①②を押した瞬間の揺れ
     hookRecord: null, // 引き上げ直前のフックとの位置関係
+    press: {},        // ①②を押していた時間（秒）：{ x, z }
+    dropOffset: null, // 下降を始めた瞬間のリング中心の、フックの先からのずれ { dx（右＋）, dz（手前＋） }
     result: null,     // 'win' | 'lose'
     maxLift: 0,
     visuals: [table.visual, ...machine.extraVisuals, machine.visual, ...shelf.visuals, arm.visual, ...chain.visuals, ring.visual],
@@ -80,6 +82,8 @@ export function buildRound(RAPIER, preset) {
     continueRound() {
       round.swing = {};
       round.hookRecord = null;
+      round.press = {};
+      round.dropOffset = null;
       round.result = null;
       round.maxLift = 0;
       arm.startReturn();
@@ -111,10 +115,22 @@ export function buildRound(RAPIER, preset) {
     if (ringLow > hookHigh + MISS_MARGIN) arm.finish();
   }
 
+  const pressFrom = {};
   arm.onPhase = (next) => {
     if (next === PHASE.ASCEND) winTimer = 0;
     if (next === PHASE.MOVE_X) round.swing.x = measureSwing(round);
     if (next === PHASE.MOVE_Z) round.swing.z = measureSwing(round);
+    // ①②を押していた時間：押して動き始めてから、離して止まり始めるまで（実際の時間で測る）
+    const now = performance.now() / 1000;
+    if (next === PHASE.MOVE_X) pressFrom.x = now;
+    if (next === PHASE.STOP_X && pressFrom.x != null) round.press.x = now - pressFrom.x;
+    if (next === PHASE.MOVE_Z) pressFrom.z = now;
+    if (next === PHASE.STOP_Z && pressFrom.z != null) round.press.z = now - pressFrom.z;
+    // 下降を始めた瞬間：リングの中心とフックの先の水平のずれ
+    if (next === PHASE.DESCEND) {
+      const c = ring.body.translation(), line = machine.hookLineWorld(), tip = line[line.length - 1];
+      round.dropOffset = { dx: c.x - tip.x, dz: c.z - tip.z };
+    }
     if (next === PHASE.ASCEND) round.hookRecord = machine.measure(ring, ringAxis(ring));
     if (next === PHASE.DONE) {
       round.result = shelf.fallen() || machine.lifted() >= preset.board.liftJudge ? 'win' : 'lose';
@@ -677,11 +693,14 @@ async function boot() {
   const resultEl = document.getElementById('result');
   function showResult(r) {
     if (!r) { resultEl.hidden = true; return; }
-    const hk = r.hookRecord;
-    const hookText = !hk ? '—' : hk.inside ? 'フックの内側' : `フックの外側 ${hk.distance.toFixed(1)}cm`;
-    const sw = s => s ? `横${s.tiltX.toFixed(1)}° 奥${s.tiltZ.toFixed(1)}° 速さ${s.speed.toFixed(1)}cm/s` : '—';
+    // 下降した地点（フックの先からのずれ。画面で見た向き：右／左、奥／手前）
+    const d = r.dropOffset;
+    const lr = v => Math.abs(v) < 0.05 ? 'ちょうど' : `${v > 0 ? '右' : '左'}に${Math.abs(v).toFixed(1)}cm`;
+    const fb = v => Math.abs(v) < 0.05 ? 'ちょうど' : `${v > 0 ? '手前' : '奥'}に${Math.abs(v).toFixed(1)}cm`;
+    const dropText = !d ? '—' : `左右：${lr(d.dx)}　前後：${fb(d.dz)}`;
+    const sec = v => v == null ? '—' : `${v.toFixed(2)}秒`;
     const w = r.result === 'win' ? lastWin : null;
-    const title = !w ? 'はずれ' : w.training ? '特訓モード：獲得！' : w.wrapped ? '全ステージクリア！' : `STAGE ${w.played + 1} クリア！`;
+    const title = !w ? '残念！' : w.training ? '特訓モード：獲得！' : w.wrapped ? '全ステージクリア！' : `STAGE ${w.played + 1} クリア！`;
     const btn = !w || w.training ? 'もう一度' : w.wrapped ? 'ステージ1から' : '次のステージへ';
     const prizeRow = !w ? '' : w.training ? `
       <div class="res-prize">
@@ -700,10 +719,9 @@ async function boot() {
       <div class="res-title ${r.result}">${title}</div>
       ${prizeRow}
       ${refundRow}
-      <div class="res-row">引き上げ直前：${hookText}</div>
-      <div class="res-row">板の持ち上がり：${r.maxLift.toFixed(1)}cm</div>
-      <div class="res-row">① 押した瞬間の揺れ：${sw(r.swing.x)}</div>
-      <div class="res-row">② 押した瞬間の揺れ：${sw(r.swing.z)}</div>
+      <div class="res-row">下降した地点（フックの先から）：${dropText}</div>
+      <div class="res-row">① 押していた時間：${sec(r.press.x)}</div>
+      <div class="res-row">② 押していた時間：${sec(r.press.z)}</div>
       <div class="res-btns"><button id="btnAgain" class="big">${btn}</button>${w || training ? '' : '<button id="btnSkip">別のステージへ</button>'}</div>`;
     resultEl.hidden = false;
     if (w) resultEl.querySelector('.res-pic').appendChild(screens.prizeCanvas(w.item, 56));

@@ -79,7 +79,7 @@ function differs(item, v, def) {
 }
 
 // basePreset：今のステージの設定（ステージが変わったら setBase で差し替える）
-// onStageReset：「ステージ1からやり直す」を押したとき
+// onStageReset：（使っていない。以前の「ステージ1からやり直す」ボタン用）
 // opts.dev：開発中（テスト用の項目を出す・特訓モードでなくても設定を変えて遊べる）
 // opts.isTraining() / opts.setTraining(on)：特訓モードの状態（ゲーム側で持つ）
 export function createDebugPanel(container, basePreset, onApply, heightInfo, onStageReset, opts = {}) {
@@ -99,8 +99,24 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     inputs = {};
     container.innerHTML = '';
     const head = el('div', 'dbg-head');
-    head.innerHTML = '<b>特訓</b><span class="dbg-sub">好きな設定で遊べます。特訓モードの間はクレジットを使いません。取った景品はマイボックスに入らず、ステージも進みません</span>';
+    head.innerHTML = '<div class="dbg-title"><b>特訓</b></div><span class="dbg-sub">好きな設定で遊べます。特訓モードの間はクレジットを使いません。取った景品はマイボックスに入らず、ステージも進みません</span>';
     container.appendChild(head);
+    // 一番上の小さいボタン：「初期値」（全項目を初期値に戻す）・「閉じる」
+    const btns = el('div', 'dbg-buttons');
+    const reset = el('button', '');
+    reset.textContent = '初期値';
+    reset.addEventListener('click', () => {
+      for (const [path, { input }] of Object.entries(inputs)) {
+        input.value = getPath(basePreset, path) ?? 0;
+        input.dispatchEvent(new Event('input'));
+      }
+      liveApply();
+    });
+    const close = el('button', '');
+    close.textContent = '閉じる';
+    close.addEventListener('click', () => toggle(false));
+    btns.append(reset, close);
+    head.querySelector('.dbg-title').appendChild(btns);
 
     // 特訓モード中は「通常のゲームに戻る」、通常モードでは「保存した設定で特訓を始める」
     //   特訓の設定は保存したまま（通常のゲームに戻っても、アプリを開き直しても消えない）
@@ -203,27 +219,6 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
       inputs[item.path] = { input, item };
     }
 
-    const btns = el('div', 'dbg-buttons');
-    const reset = el('button', '');
-    reset.textContent = '初期値に戻す';
-    reset.addEventListener('click', () => {
-      for (const [path, { input }] of Object.entries(inputs)) {
-        input.value = getPath(basePreset, path) ?? 0;
-        input.dispatchEvent(new Event('input'));
-      }
-      liveApply();
-    });
-    const close = el('button', '');
-    close.textContent = '閉じる';
-    close.addEventListener('click', () => toggle(false));
-    btns.append(reset, close);
-    if (onStageReset && dev) {   // テスト用（開発中だけ表示）
-      const stage1 = el('button', '');
-      stage1.textContent = 'ステージ1からやり直す';
-      stage1.addEventListener('click', () => { toggle(false); onStageReset(); });
-      btns.append(stage1);
-    }
-    container.appendChild(btns);
     updateInfo();
   }
 

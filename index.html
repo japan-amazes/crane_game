@@ -198,6 +198,12 @@
   .m-mode button.on { background: linear-gradient(#ff8cc2, #ff3f8e); border-color: #ffd1e8; }
   .m-mode i { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--gold);
     color: #5a2a00; font-size: 12px; font-style: normal; line-height: 20px; }
+  /* マイボックスのボタンのバッジ（開けていないカードパックの数） */
+  #btnBox { position: relative; }
+  #btnBox[data-badge]::after { content: attr(data-badge); position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px;
+    padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: var(--gold); color: #5a2a00; font-size: 12px;
+    font-weight: 800; line-height: 20px; text-align: center; }
+  body.theme-cool #btnBox[data-badge]::after { color: #0b1220; background: #5fd0ff; }
   .m-msg { background: #ffffff1c; border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; font-size: 13px; color: var(--gold); font-weight: 700; }
   /* カードパック（アイテムタブ） */
   .m-pack { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 16px; background: #ffffff14; margin-bottom: 10px; }

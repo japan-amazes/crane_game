@@ -409,7 +409,14 @@ async function boot() {
     return ` <small class="hud-r">あと ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}</small>`;
   }
   setInterval(() => { if (round) showHud(); }, 1000);   // 残り時間と回復を1秒ごとに表示しなおす
+  // マイボックスのボタンに、まだ開けていないカードパックの数のバッジ
+  const btnBoxEl = document.getElementById('btnBox');
+  function showBoxBadge() {
+    const n = progress.packs;
+    if (n > 0) btnBoxEl.dataset.badge = n; else delete btnBoxEl.dataset.badge;
+  }
   function showHud() {
+    showBoxBadge();
     const unl = debug.unlimited;
     hud.innerHTML = `
       ${training ? '<span class="hud-c">特訓モード：クレジット不要</span>' : `<span class="hud-c">クレジット <b>${unl ? '∞' : progress.credits}</b>${regenText(unl)}</span>`}

@@ -165,6 +165,10 @@ export function stagePreset(base, spec, i) {
     const sign = rand ? (rand() < 0.5 ? -1 : 1) : 1;
     p.ring.yawDeg = ((p.hook.yawDeg + sign * (90 - A)) % 180 + 180) % 180;   // リングは180°回すと同じ形
   }
+  // 板の形：★が低いステージは正方形（長い辺に合わせる）。フックが手前・奥を向いても板の幅が狭くならない
+  //   ★が boardSquareMaxStar より高いステージは、元の長方形（横長）のまま
+  const sqMax = spec.boardSquareMaxStar ?? 3;
+  if (stageStars(spec, i) <= sqMax) p.board.depth = p.board.width = Math.max(p.board.width, p.board.depth);
   return applyChainRatio(p);   // チェーンの長さは、リングの直径と下降制限から決まる範囲の割合で
 }
 // 種（seed）から決まる乱数（mulberry32）

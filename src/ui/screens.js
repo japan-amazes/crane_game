@@ -154,7 +154,7 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
         <div class="pk-cards" hidden>${cards.map((c, i) => `
           <button class="pk-card" data-card="${i}">
             <span class="pk-back">?</span>
-            <span class="pk-front"><i>${c.icon}</i><b>${c.name}</b></span>
+            <span class="pk-front"><i>${c.icon}</i><b>${(c.card || [c.name]).join('<br>')}</b></span>
           </button>`).join('')}</div>
       </div>
       <div class="m-sum pk-msg">パックをタップしてください</div>

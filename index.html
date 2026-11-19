@@ -224,17 +224,73 @@
   @keyframes pk-burst { to { transform: scale(1.3); opacity: 0; } }
   .pk-cards { display: flex; gap: 10px; }
   .pk-cards[hidden] { display: none; }
-  .pk-card { position: relative; width: 96px; height: 136px; padding: 0; border: none; background: none; perspective: 600px; }
+  .pk-card { position: relative; width: 96px; height: 136px; padding: 0; border: none; background: none; box-shadow: none; perspective: 600px; }
   .pk-card span { position: absolute; inset: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
     backface-visibility: hidden; transition: transform 0.45s; border: 2px solid #fff; }
   .pk-back { background: repeating-linear-gradient(45deg, #8a63d2 0 8px, #6a3fb8 8px 16px); font-size: 40px; color: #fff; font-weight: 800; }
   .pk-front { background: linear-gradient(#fff, #ffe3f1); color: #3a1460; transform: rotateY(180deg); gap: 8px; padding: 6px; }
   .pk-front i { font-style: normal; font-size: 38px; }
-  .pk-front b { font-size: 12px; line-height: 1.3; }
+  .pk-front b { font-size: 12px; line-height: 1.3; white-space: normal; text-align: center; }
   .pk-card.flip .pk-back { transform: rotateY(180deg); }
   .pk-card.flip .pk-front { transform: rotateY(360deg); }
   .pk-ok { width: 100%; }
   #hud .hud-e { font-size: 12px; }
+  /* ---- お祝いの演出（コンプリート） ---- */
+  .cel { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    opacity: 0; transition: opacity 0.35s ease; }
+  .cel.in { opacity: 1; }
+  .cel.out { opacity: 0; }
+  .cel-bg { position: absolute; inset: 0; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    background: radial-gradient(120% 80% at 50% 38%, #6a2fa8d9 0%, #2a1145f0 55%, #12061ff7 100%); }
+  .cel-cool .cel-bg { background: radial-gradient(120% 80% at 50% 38%, #0f3a6bd9 0%, #07121ff0 55%, #020509f7 100%); }
+  /* 後ろでゆっくり回る光の筋 */
+  .cel-rays { position: absolute; left: 50%; top: 36%; width: 180vmax; height: 180vmax; margin: -90vmax 0 0 -90vmax;
+    background: repeating-conic-gradient(from 0deg, #ffffff16 0deg 7deg, transparent 7deg 22deg);
+    -webkit-mask-image: radial-gradient(circle, #000 0%, #0008 22%, transparent 48%); mask-image: radial-gradient(circle, #000 0%, #0008 22%, transparent 48%);
+    animation: cel-spin 40s linear infinite; opacity: 0; transition: opacity 1.2s ease 0.2s; }
+  .cel.in .cel-rays { opacity: 1; }
+  .cel-cat .cel-rays { opacity: 0 !important; }
+  @keyframes cel-spin { to { transform: rotate(360deg); } }
+  .cel-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  .cel-body { position: relative; z-index: 1; width: min(88vw, 380px); text-align: center; color: #fff; }
+  .cel-label { font-size: 13px; letter-spacing: 0.32em; font-weight: 800; color: #ffe9a8; opacity: 0;
+    animation: cel-up 0.6s ease 0.15s forwards; }
+  .cel-cool .cel-label { color: #9fe3ff; }
+  /* タイトル：金色のグラデーションの文字。弾むように出て、光が横切る */
+  .cel-title { font-size: 54px; line-height: 1.05; font-weight: 800; letter-spacing: 0.04em; margin: 6px 0 4px;
+    background: linear-gradient(100deg, #fff3c4 0%, #ffd34d 30%, #fffbe8 46%, #ffd34d 54%, #ff9fd0 100%);
+    background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 3px 0 #7a2a5a) drop-shadow(0 0 18px #ffd34d66);
+    transform: scale(0.4); opacity: 0;
+    animation: cel-pop 0.7s cubic-bezier(.2, 1.5, .4, 1) 0.3s forwards, cel-shine 2.6s ease-in-out 1.1s infinite; }
+  .cel-cat .cel-title { font-size: 44px; }
+  .cel-cool .cel-title { background-image: linear-gradient(100deg, #ffffff 0%, #9fe3ff 30%, #ffffff 46%, #9fe3ff 54%, #3aa0ff 100%);
+    filter: drop-shadow(0 3px 0 #0b2a55) drop-shadow(0 0 18px #5fd0ff66); }
+  @keyframes cel-pop { to { transform: scale(1); opacity: 1; } }
+  @keyframes cel-shine { 0% { background-position: 100% 0; } 60%, 100% { background-position: 0% 0; } }
+  .cel-sub { font-size: 20px; font-weight: 800; margin-bottom: 18px; opacity: 0; animation: cel-up 0.6s ease 0.6s forwards;
+    text-shadow: 0 2px 8px #0006; }
+  .cel-rewards { display: flex; flex-direction: column; gap: 10px; }
+  .cel-reward { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; border-radius: 18px;
+    background: linear-gradient(#ffffff1f, #ffffff0d); border: 1px solid #ffffff40;
+    box-shadow: 0 8px 24px #0004, inset 0 1px 0 #ffffff33; opacity: 0; animation: cel-up 0.6s ease var(--d) forwards; }
+  .cel-ic { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 26px; background: linear-gradient(135deg, #ffd166, #ff6fae); box-shadow: 0 0 16px #ffd16666; }
+  .cel-cool .cel-ic { background: linear-gradient(135deg, #5fd0ff, #2f6bff); box-shadow: 0 0 16px #5fd0ff66; }
+  .cel-ic .mini-pack { font-size: 9px; font-weight: 800; line-height: 1.15; color: #fff; text-shadow: 0 1px 2px #0006; }
+  .cel-rt b { display: block; font-size: 16px; }
+  .cel-rt small { display: block; font-size: 12px; opacity: 0.85; line-height: 1.5; margin-top: 2px; font-weight: 500; }
+  .cel-note { font-size: 12px; opacity: 0; margin-top: 14px; animation: cel-up 0.6s ease var(--d) forwards; color: #ffffffcc; }
+  .cel-ok { width: 100%; margin-top: 18px; opacity: 0; animation: cel-up 0.6s ease var(--d) forwards; }
+  @keyframes cel-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  /* 特訓ボタン：開放されてまだ押していないとき */
+  #btnDebug.is-new { animation: btn-glow 1.6s ease-in-out infinite; }
+  #btnDebug.is-new::after { content: 'NEW'; position: absolute; top: -8px; right: -6px; font-size: 10px; font-weight: 800;
+    padding: 2px 6px; border-radius: 999px; background: var(--gold); color: #5a2a00; box-shadow: 0 0 8px #ffd34d; }
+  @keyframes btn-glow { 0%, 100% { box-shadow: 0 0 6px #ffd34d66; } 50% { box-shadow: 0 0 18px #ffd34d, 0 0 32px #ff6fae88; } }
+  body.theme-cool #btnDebug.is-new::after { background: #5fd0ff; color: #0b1220; box-shadow: 0 0 8px #5fd0ff; }
+  body.theme-cool #btnDebug.is-new { animation-name: btn-glow-cool; }
+  @keyframes btn-glow-cool { 0%, 100% { box-shadow: 0 0 6px #5fd0ff66; } 50% { box-shadow: 0 0 18px #5fd0ff, 0 0 32px #2f7bff88; } }
 
   /* ---- 数値調整パネル（開発用） ---- */
   #debug { position: fixed; inset: 0; overflow-y: auto; background: #1e1036f7; padding: calc(14px + var(--sat)) 14px 40px; z-index: 10; font-weight: 500; }

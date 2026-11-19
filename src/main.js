@@ -10,6 +10,7 @@ import { createRing, ringAxis } from './physics/ring.js';
 import { createHookMachine } from './machines/hook.js';
 import { createPrizeShelf, shelfHole, SHELF } from './machines/prizeShelf.js';
 import { applyChainRatio } from './game/chainRange.js';
+import { celebrate } from './ui/celebrate.js';
 
 // 開発中：特訓ボタンを常に表示し、テスト用の項目（クレジット無制限など）を出す。完成版では false にする
 const DEV_MODE = true;
@@ -230,7 +231,20 @@ async function boot() {
     { dev: DEV_MODE, isTraining: () => training, setTraining: on => { training = on; if (round) { setStatus(); showStageLabel(); } } });
   // 「特訓」ボタン：全コンプリートで開放（開発中は常に表示）
   const btnDebug = document.getElementById('btnDebug');
-  function showTrainingButton() { btnDebug.hidden = !(DEV_MODE || progress.trainingUnlocked); }
+  // 開放されてまだ押していないときは、光らせて「NEW」を付ける
+  const TRAINING_SEEN_KEY = 'crane.trainingSeen.v1';
+  let trainingSeen = false;
+  try { trainingSeen = localStorage.getItem(TRAINING_SEEN_KEY) === '1'; } catch { /* 保存できない環境 */ }
+  function showTrainingButton() {
+    btnDebug.hidden = !(DEV_MODE || progress.trainingUnlocked);
+    btnDebug.classList.toggle('is-new', progress.trainingUnlocked && !trainingSeen);
+  }
+  btnDebug.addEventListener('click', () => {
+    if (trainingSeen || !progress.trainingUnlocked) return;
+    trainingSeen = true;
+    try { localStorage.setItem(TRAINING_SEEN_KEY, '1'); } catch { /* 保存できない環境 */ }
+    showTrainingButton();
+  });
   showTrainingButton();
   // 新しいステージで始める（景品も新しく引く）
   function goStage(i) {
@@ -667,7 +681,29 @@ async function boot() {
       <div class="res-btns"><button id="btnAgain" class="big">${btn}</button>${w || training ? '' : '<button id="btnSkip">別のステージへ</button>'}</div>`;
     resultEl.hidden = false;
     if (w) resultEl.querySelector('.res-pic').appendChild(screens.prizeCanvas(w.item, 56));
-    if (w && w.allComplete) showTrainingButton();
+    if (w && w.completedCat) setTimeout(() => showComplete(w), 1300);   // 獲得の音のあとにお祝い
+  }
+
+  // コンプリートのお祝い（全コンプリートなら特訓モードの開放も）
+  const PACK_ICON = '<span class="mini-pack">CARD<br>PACK</span>';
+  function showComplete(w) {
+    const pack = { icon: PACK_ICON, title: 'カードパック ×1', text: `${w.completedCat.name}のコンプリート報酬。マイボックスの「アイテム」から開けられます` };
+    if (w.allComplete) {
+      sound.sfx('grand');
+      celebrate({
+        kind: 'grand', theme, label: 'ALL CATEGORIES', title: 'COMPLETE', sub: '全コンプリート おめでとう！',
+        rewards: [pack, { icon: '🎯', title: '特訓モード 開放', text: '右上の「特訓」ボタンから、好きな設定で遊べます' }],
+        note: `コレクションは${progress.lap + 1}周目に入ります（ポイント・アイテムはそのまま）`,
+        onClose: showTrainingButton
+      });
+      return;
+    }
+    const done = prizeMod.CATEGORIES.filter(c => c.items.every(it => progress.count(it.id) > 0)).length;
+    sound.sfx('complete');
+    celebrate({
+      kind: 'cat', theme, label: w.completedCat.name, title: 'COMPLETE', sub: `${w.completedCat.name} コンプリート！`,
+      rewards: [pack], note: `全コンプリートまで あと${prizeMod.CATEGORIES.length - done}カテゴリー`
+    });
     document.getElementById('btnAgain').addEventListener('click', again);
     const skip = document.getElementById('btnSkip');
     if (skip) skip.addEventListener('click', () => { progress.skipStage(); goStage(progress.stage); });

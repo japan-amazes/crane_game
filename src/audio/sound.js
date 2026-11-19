@@ -168,6 +168,32 @@ export function createSound() {
       [['F5', 'pulse25', 0.24], ['C6', 'pulse12', 0.14], ['F2', 'triangle', 0.4]]
         .forEach(([n, w, v]) => tone(w, noteFreq(n), h + 1.05, 0.5, v, sfxGain));
     },
+    // カテゴリーのコンプリート：駆け上がり → 明るい和音 → きらめき
+    complete(t) {
+      ['C5', 'E5', 'G5', 'C6', 'E6'].forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.07, 0.08, 0.22, sfxGain));
+      const h = t + 0.38;
+      [['C6', 'pulse25', 0.2], ['E6', 'pulse12', 0.14], ['G6', 'pulse12', 0.12], ['C3', 'triangle', 0.4]]
+        .forEach(([n, w, v]) => tone(w, noteFreq(n), h, 0.8, v, sfxGain));
+      ['G6', 'C7', 'E7', 'G7', 'C8'].forEach((n, i) => tone('pulse12', noteFreq(n), h + 0.25 + i * 0.07, 0.07, 0.08, sfxGain));
+    },
+    // 全コンプリート：小太鼓の連打 → 3つの和音で盛り上げて → 長く伸ばしてきらめき
+    grand(t) {
+      for (let i = 0; i < 14; i++) drum('S', t + i * 0.045, 0.08 + i * 0.012, sfxGain);
+      const a = t + 0.66;
+      // メロディ（上）と和音・ベース
+      [['G5', 0, 0.14], ['C6', 0.15, 0.14], ['E6', 0.3, 0.14], ['G6', 0.45, 0.42], ['E6', 0.9, 0.14], ['G6', 1.05, 0.14], ['A6', 1.2, 0.14], ['B6', 1.35, 0.14]]
+        .forEach(([n, d, l]) => tone('pulse25', noteFreq(n), a + d, l, 0.22, sfxGain));
+      [[0, ['C5', 'E5', 'G5'], 'C3', 0.85], [0.9, ['F5', 'A5', 'C6'], 'F3', 0.45], [1.35, ['G5', 'B5', 'D6'], 'G3', 0.15]]
+        .forEach(([d, ch, b, l]) => {
+          ch.forEach(n => tone('pulse12', noteFreq(n), a + d, l, 0.09, sfxGain));
+          tone('triangle', noteFreq(b), a + d, l, 0.38, sfxGain);
+        });
+      const e = a + 1.5;
+      drum('K', e, 0.5, sfxGain);
+      [['C7', 'pulse25', 0.2], ['E6', 'pulse12', 0.12], ['G6', 'pulse12', 0.12], ['C6', 'pulse12', 0.1], ['C3', 'triangle', 0.4], ['C2', 'triangle', 0.3]]
+        .forEach(([n, w, v]) => tone(w, noteFreq(n), e, 1.4, v, sfxGain));
+      ['C7', 'E7', 'G7', 'C8', 'G7', 'E7', 'G7', 'C8'].forEach((n, i) => tone('pulse12', noteFreq(n), e + 0.3 + i * 0.08, 0.07, 0.07, sfxGain));
+    },
     lose(t) {
       ['G4', 'E4', 'C4'].forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.16, i === 2 ? 0.4 : 0.14, 0.25, sfxGain));
     }

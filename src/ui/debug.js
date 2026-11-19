@@ -64,7 +64,12 @@ const SCHEMA = [
 
 // basePreset：今のステージの設定（ステージが変わったら setBase で差し替える）
 // onStageReset：「ステージ1からやり直す」を押したとき
-export function createDebugPanel(container, basePreset, onApply, heightInfo, onStageReset) {
+// opts.dev：開発中（テスト用の項目を出す・特訓モードでなくても設定を変えて遊べる）
+// opts.isTraining() / opts.setTraining(on)：特訓モードの状態（ゲーム側で持つ）
+export function createDebugPanel(container, basePreset, onApply, heightInfo, onStageReset, opts = {}) {
+  const dev = !!opts.dev;
+  const isTraining = opts.isTraining || (() => false);
+  const setTraining = opts.setTraining || (() => {});
   let overrides = load();
   let inputs = {};
   let guide = true;
@@ -78,8 +83,21 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     inputs = {};
     container.innerHTML = '';
     const head = el('div', 'dbg-head');
-    head.innerHTML = '<b>数値調整</b><span class="dbg-sub">開発用。今のステージの設定を表示。変更は「適用」でやり直し（試し遊び用で、ステージの設定自体は変わらない。次のステージに進むと元に戻る）</span>';
+    head.innerHTML = '<b>特訓</b><span class="dbg-sub">好きな設定で遊べます。特訓モードの間はクレジットを使いません。取った景品はマイボックスに入らず、ステージも進みません</span>';
     container.appendChild(head);
+
+    // 特訓モードの切り替え。オフにすると今のステージの通常の設定に戻る
+    const trRow = el('label', 'dbg-row dbg-check dbg-training');
+    trRow.innerHTML = `<input type="checkbox"${isTraining() ? ' checked' : ''}> 特訓モード`;
+    trRow.querySelector('input').addEventListener('change', e => {
+      if (e.target.checked) { setTraining(true); return; }
+      overrides = {};
+      save(overrides);
+      setTraining(false);
+      toggle(false);
+      onApply();
+    });
+    container.appendChild(trRow);
 
     // 高さの目安（チェーン・下降制限などを動かすとその場で再計算）
     info = el('div', 'dbg-info');
@@ -91,6 +109,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     container.appendChild(guideRow);
 
     const unlRow = el('label', 'dbg-row dbg-check');
+    unlRow.hidden = !dev;   // テスト用（開発中だけ表示）
     unlRow.innerHTML = `<input type="checkbox"${unlimited ? ' checked' : ''}> クレジット無制限（テスト用）`;
     unlRow.querySelector('input').addEventListener('change', e => {
       unlimited = e.target.checked;
@@ -148,6 +167,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
         if (String(v) !== String(getPath(basePreset, path))) overrides[path] = v;
       }
       save(overrides);
+      if (!dev && !isTraining()) setTraining(true);   // 完成版では、設定を変えて遊ぶのは特訓モードだけ
       toggle(false);
       onApply();
     });
@@ -165,7 +185,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     close.textContent = '閉じる';
     close.addEventListener('click', () => toggle(false));
     btns.append(apply, reset, close);
-    if (onStageReset) {
+    if (onStageReset && dev) {   // テスト用（開発中だけ表示）
       const stage1 = el('button', '');
       stage1.textContent = 'ステージ1からやり直す';
       stage1.addEventListener('click', () => { toggle(false); onStageReset(); });
@@ -195,7 +215,8 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
 
   function currentPreset() {
     const p = JSON.parse(JSON.stringify(basePreset));
-    for (const [path, v] of Object.entries(overrides)) setPath(p, path, v);
+    // 完成版では、特訓モードのときだけ変えた設定を使う
+    if (dev || isTraining()) for (const [path, v] of Object.entries(overrides)) setPath(p, path, v);
     // チェーンの長さを直接変えたら、ステージの「割合」より優先。そうでなければ、下降制限・リングを変えたときに割合から計算し直す
     if ('chain.length' in overrides) p.chain.lengthRatio = null;
     return applyChainRatio(p);
@@ -203,6 +224,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
 
   function toggle(force) {
     const open = typeof force === 'boolean' ? force : container.hidden;
+    if (open) build();   // 特訓モードの状態などを表示しなおす
     container.hidden = !open;
   }
 
@@ -219,7 +241,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     setBase,
     toggle,
     get guide() { return guide; },
-    get unlimited() { return unlimited; }
+    get unlimited() { return dev && unlimited; }
   };
 }
 

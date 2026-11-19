@@ -11,6 +11,9 @@ import { createHookMachine } from './machines/hook.js';
 import { createPrizeShelf, shelfHole, SHELF } from './machines/prizeShelf.js';
 import { applyChainRatio } from './game/chainRange.js';
 
+// 開発中：特訓ボタンを常に表示し、テスト用の項目（クレジット無制限など）を出す。完成版では false にする
+const DEV_MODE = true;
+
 const LIB = {
   three: 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js',
   rapier: 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/+esm'
@@ -220,8 +223,15 @@ async function boot() {
   const STAGE_TOTAL = stageCount(stages);
   const progress = progressMod.createProgress(STAGE_TOTAL);
   const stageLabel = document.getElementById('stageLabel');
+  // 特訓モード：好きな設定で遊ぶ。クレジットを使わず、取った景品はマイボックスに入らない（ステージも進まない）
+  let training = false;
   const debug = debugMod.createDebugPanel(document.getElementById('debug'), stagePreset(basePreset, stages, progress.stage), () => restart(true), heightInfo,
-    () => { progress.resetAll(); goStage(0); });
+    () => { progress.resetAll(); goStage(0); },
+    { dev: DEV_MODE, isTraining: () => training, setTraining: on => { training = on; if (round) { setStatus(); showStageLabel(); } } });
+  // 「特訓」ボタン：全コンプリートで開放（開発中は常に表示）
+  const btnDebug = document.getElementById('btnDebug');
+  function showTrainingButton() { btnDebug.hidden = !(DEV_MODE || progress.trainingUnlocked); }
+  showTrainingButton();
   // 新しいステージで始める（景品も新しく引く）
   function goStage(i) {
     progress.goStage(i);
@@ -367,7 +377,7 @@ async function boot() {
   function showHud() {
     const unl = debug.unlimited;
     hud.innerHTML = `
-      <span class="hud-c">クレジット <b>${unl ? '∞' : progress.credits}</b>${regenText(unl)}</span>
+      ${training ? '<span class="hud-c">特訓モード：クレジット不要</span>' : `<span class="hud-c">クレジット <b>${unl ? '∞' : progress.credits}</b>${regenText(unl)}</span>`}
       <span class="hud-p"><b>${progress.points}</b>pt</span>
       ${effectChips()}`;
   }
@@ -386,6 +396,7 @@ async function boot() {
   // 戻り値 { ok, msg, close }（close：画面を閉じてゲームに戻る）
   function useItem(id, arg) {
     const def = itemsMod.findItemDef(id);
+    if (training && def.when === 'ready') return { ok: false, msg: '特訓モード中は使えません' };
     const ready = round && round.arm.phase === PHASE.READY && !paid;
     if (def.when === 'ready' && !ready) return { ok: false, msg: '①を押す前に使えます' };
     const stars = stageStars(stages, progress.stage);
@@ -426,7 +437,7 @@ async function boot() {
   // ①を押したとき：まだ払っていなければクレジットを使う。足りなければ広告の案内
   function startPlay() {
     if (paid) return true;
-    if (!progress.useCredit(debug.unlimited)) {
+    if (!training && !progress.useCredit(debug.unlimited)) {   // 特訓モードはクレジットを使わない
       screens.showNoCredit(() => showHud());
       return false;
     }
@@ -484,13 +495,16 @@ async function boot() {
     applyCamera(0.5);
   }
 
+  function showStageLabel() {
+    stageLabel.textContent = training ? '特訓モード' : `STAGE ${progress.stage + 1}${progress.isCleared(progress.stage) ? ' ✓' : ''}`;
+  }
   // keepPrize：true＝同じ景品のまま作り直す（「最初から」・調整の適用）
   function restart(keepPrize = true) {
     if (!keepPrize || !prize) newPrize();
     round = buildRound(RAPIER, debug.currentPreset());
     round.onPhase = onPhase;
     view.setRound(round);
-    stageLabel.textContent = `STAGE ${progress.stage + 1}${progress.isCleared(progress.stage) ? ' ✓' : ''}`;
+    showStageLabel();
     paid = false;
     acc = 0;
     showResult(null);
@@ -505,7 +519,8 @@ async function boot() {
   // 「もう一度」：失敗なら続けて（初期位置へ戻る）、獲得なら次のステージへ（獲得時にもう進めてある）
   function again() {
     if (round && round.result === 'win') {
-      goStage(progress.stage);
+      if (training) restart(true);   // 特訓モード：同じ設定・同じ景品でもう一度
+      else goStage(progress.stage);
       return;
     }
     // はずれでも板が持ち上がっていた（リングが掛かったまま・網が傾いたまま）ときは、続けずに台を元に戻す（店員さんが直すイメージ）
@@ -531,8 +546,9 @@ async function boot() {
   let refunded = false; // はずれでリトライ券が効いた
   function onPhase(next) {
     if (next === PHASE.DONE) {
-      refunded = round.result !== 'win' && paid && !debug.unlimited && progress.refundRetry();
-      if (round.result === 'win') {
+      refunded = !training && round.result !== 'win' && paid && !debug.unlimited && progress.refundRetry();
+      if (training) lastWin = round.result === 'win' ? { training: true, item: prize } : null;   // 特訓モード：記録しない
+      else if (round.result === 'win') {
         const played = progress.stage;
         const got = progress.addPrize(prize.id);
         const { wrapped } = progress.clearStage();
@@ -615,14 +631,19 @@ async function boot() {
     const hookText = !hk ? '—' : hk.inside ? 'フックの内側' : `フックの外側 ${hk.distance.toFixed(1)}cm`;
     const sw = s => s ? `横${s.tiltX.toFixed(1)}° 奥${s.tiltZ.toFixed(1)}° 速さ${s.speed.toFixed(1)}cm/s` : '—';
     const w = r.result === 'win' ? lastWin : null;
-    const title = !w ? 'はずれ' : w.wrapped ? '全ステージクリア！' : `STAGE ${w.played + 1} クリア！`;
-    const btn = !w ? 'もう一度' : w.wrapped ? 'ステージ1から' : '次のステージへ';
-    const prizeRow = !w ? '' : `
+    const title = !w ? 'はずれ' : w.training ? '特訓モード：獲得！' : w.wrapped ? '全ステージクリア！' : `STAGE ${w.played + 1} クリア！`;
+    const btn = !w || w.training ? 'もう一度' : w.wrapped ? 'ステージ1から' : '次のステージへ';
+    const prizeRow = !w ? '' : w.training ? `
+      <div class="res-prize">
+        <div class="res-pic"></div>
+        <div><b>${w.item.name}</b><br>特訓モードなので、マイボックスには入りません</div>
+      </div>` : `
       <div class="res-prize">
         <div class="res-pic"></div>
         <div><b>${w.item.name}</b> <span class="stars">${'★'.repeat(w.item.rarity)}</span><br>
         ${w.isNew ? '<span class="res-new">NEW！ マイボックスに入りました</span>' : `ダブり：<b>＋${w.points}pt</b>`}
-        ${w.completedCat ? `<br><span class="res-new">${w.completedCat.name} コンプリート！ カードパック＋1</span>` : ''}</div>
+        ${w.completedCat ? `<br><span class="res-new">${w.completedCat.name} コンプリート！ カードパック＋1</span>` : ''}
+        ${w.allComplete ? `<br><span class="res-new">全コンプリート！ 特訓モードが開放されました（右上の「特訓」）。コレクションは${progress.lap + 1}周目に入ります</span>` : ''}</div>
       </div>`;
     const refundRow = refunded ? '<div class="res-row res-new">🔁 リトライ券：クレジットが1戻りました</div>' : '';
     resultEl.innerHTML = `
@@ -633,9 +654,10 @@ async function boot() {
       <div class="res-row">板の持ち上がり：${r.maxLift.toFixed(1)}cm</div>
       <div class="res-row">① 押した瞬間の揺れ：${sw(r.swing.x)}</div>
       <div class="res-row">② 押した瞬間の揺れ：${sw(r.swing.z)}</div>
-      <div class="res-btns"><button id="btnAgain" class="big">${btn}</button>${w ? '' : '<button id="btnSkip">別のステージへ</button>'}</div>`;
+      <div class="res-btns"><button id="btnAgain" class="big">${btn}</button>${w || training ? '' : '<button id="btnSkip">別のステージへ</button>'}</div>`;
     resultEl.hidden = false;
     if (w) resultEl.querySelector('.res-pic').appendChild(screens.prizeCanvas(w.item, 56));
+    if (w && w.allComplete) showTrainingButton();
     document.getElementById('btnAgain').addEventListener('click', again);
     const skip = document.getElementById('btnSkip');
     if (skip) skip.addEventListener('click', () => { progress.skipStage(); goStage(progress.stage); });

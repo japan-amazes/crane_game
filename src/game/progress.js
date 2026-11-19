@@ -30,6 +30,8 @@ export function createProgress(stageTotal) {
     packs: 0,          // まだ開けていないカードパック
     retryArmed: false, // リトライ券を使用中（次にはずれたらクレジットが戻る）
     completed: [],     // コンプリート済みのカテゴリーID（ごほうびは1回だけ）
+    lap: 0,            // コレクションの周回（全コンプリートで1増えて、コレクションは空に戻る）
+    trainingUnlocked: false,   // 全コンプリートで特訓モードが開放される
     credits: DAILY_CREDITS,
     creditDay: today(),
     regenAt: Date.now()   // 時間の回復を数え始めた時刻
@@ -179,6 +181,8 @@ export function createProgress(stageTotal) {
 
     // ---- カードパック ----
     get packs() { return st.packs; },
+    get lap() { return st.lap; },
+    get trainingUnlocked() { return st.trainingUnlocked; },
     // 1パック開ける：3枚引いて持ち物に入れる。引いたアイテムの一覧を返す
     openPack() {
       if (st.packs <= 0) return null;
@@ -194,7 +198,7 @@ export function createProgress(stageTotal) {
     },
 
     // ---- コレクション ----
-    // 獲得した景品を入れる。戻り値：{ isNew, points, completedCat }
+    // 獲得した景品を入れる。戻り値：{ isNew, points, completedCat, allComplete }
     addPrize(id) {
       const it = findItem(id);
       const had = st.box[id] || 0;
@@ -202,8 +206,16 @@ export function createProgress(stageTotal) {
       let points = 0;
       if (had > 0) { points = DUP_POINTS[it.rarity]; st.points += points; }
       const completedCat = checkComplete(it.cat);
+      // 全カテゴリーをコンプリート：特訓モードを開放して、コレクションだけ空にして次の周へ
+      const allComplete = !!completedCat && CATEGORIES.every(c => st.completed.includes(c.id));
+      if (allComplete) {
+        st.trainingUnlocked = true;
+        st.lap++;
+        st.box = {};
+        st.completed = [];
+      }
       save();
-      return { isNew: had === 0, points, completedCat };
+      return { isNew: had === 0, points, completedCat, allComplete };
     },
   };
 

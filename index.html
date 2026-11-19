@@ -150,6 +150,7 @@
   /* ---- モーダル（マイボックス・ステージ・広告） ---- */
   #modal { position: fixed; inset: 0; z-index: 20; background: #1a0b2fb3; display: flex; align-items: center; justify-content: center; padding: 12px; }
   #modal[hidden] { display: none; }
+  #btnDebug[hidden], .dbg-row[hidden] { display: none; }
   .m-card { width: 100%; max-width: 440px; max-height: 92dvh; overflow-y: auto; background: linear-gradient(#4a2780, #2f1655);
     border: 2px solid #ff9fd0; border-radius: 20px; padding: 14px; box-shadow: 0 0 20px #ff6fae66; }
   .m-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 18px; }
@@ -330,7 +331,7 @@
     <div id="status"></div>
     <div id="stageLabel"></div>
     <div id="themeToggle"><button data-theme="cute">キュート</button><button data-theme="cool">クール</button></div>
-    <button id="btnDebug">⚙ 調整</button>
+    <button id="btnDebug">⚙ 特訓</button>
     <div id="hud"></div>
     <div id="result" hidden></div>
   </div>

@@ -7,7 +7,8 @@ import { ITEMS, PACK_CARDS, CARD_IMG, iconTag } from '../game/items.js';
 
 // canUseReady()：①を押す前か（プレイ中に使えないアイテムの判定）
 // onUseItem(id, arg)：アイテムを使う（ゲーム側で処理）。戻り値 { ok, msg }
-export function createScreens({ progress, onPickStage, canUseReady, onUseItem }) {
+// sfx(name, arg)：効果音を鳴らす
+export function createScreens({ progress, onPickStage, canUseReady, onUseItem, sfx = () => {} }) {
   const root = document.getElementById('modal');
 
   function open(html) {
@@ -165,11 +166,13 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
     pack.addEventListener('click', () => {
       if (pack.classList.contains('open')) return;
       pack.classList.add('open');
+      sfx('packOpen');
       setTimeout(() => {
         pack.hidden = true; list.hidden = false; msg.textContent = '';
         root.querySelectorAll('[data-card]').forEach((b, i) => setTimeout(() => {
           b.classList.add('flip');
-          if (i === cards.length - 1) setTimeout(() => { msg.textContent = 'アイテムに入りました'; ok.hidden = false; }, 450);
+          sfx('cardFlip', i);
+          if (i === cards.length - 1) setTimeout(() => { msg.textContent = 'アイテムに入りました'; ok.hidden = false; sfx('cardsDone'); }, 450);
         }, FLIP_GAP * (i + 1)));
       }, 350);
     });

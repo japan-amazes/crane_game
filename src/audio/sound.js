@@ -194,13 +194,41 @@ export function createSound() {
         .forEach(([n, w, v]) => tone(w, noteFreq(n), e, 1.4, v, sfxGain));
       ['C7', 'E7', 'G7', 'C8', 'G7', 'E7', 'G7', 'C8'].forEach((n, i) => tone('pulse12', noteFreq(n), e + 0.3 + i * 0.08, 0.07, 0.07, sfxGain));
     },
+    // カードパックを開ける：袋が破れる「シュワッ」（ノイズを高い方から下げる）＋きらっと
+    packOpen(t) {
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.Q.value = 1.2;
+      f.frequency.setValueAtTime(6000, t);
+      f.frequency.exponentialRampToValueAtTime(700, t + 0.28);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.35, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      src.connect(f); f.connect(g); g.connect(sfxGain);
+      src.start(t, Math.random() * 0.5); src.stop(t + 0.32);
+      ['E6', 'B6', 'E7'].forEach((n, i) => tone('pulse12', noteFreq(n), t + 0.12 + i * 0.05, 0.08, 0.1, sfxGain));
+    },
+    // カードが1枚めくれる：「ピロン」。n（0,1,2）でだんだん高く
+    cardFlip(t, n = 0) {
+      const base = [['C6', 'G6'], ['E6', 'B6'], ['G6', 'D7']][Math.min(n, 2)];
+      tone('pulse25', noteFreq(base[0]), t, 0.06, 0.2, sfxGain);
+      tone('pulse25', noteFreq(base[1]), t + 0.06, 0.14, 0.18, sfxGain);
+    },
+    // 3枚めくり終わり：小さく「ジャン♪」
+    cardsDone(t) {
+      [['C6', 'pulse25', 0.16], ['E6', 'pulse12', 0.1], ['G6', 'pulse12', 0.1], ['C4', 'triangle', 0.3]]
+        .forEach(([n, w, v]) => tone(w, noteFreq(n), t, 0.45, v, sfxGain));
+      ['G6', 'C7', 'E7'].forEach((n, i) => tone('pulse12', noteFreq(n), t + 0.15 + i * 0.06, 0.06, 0.07, sfxGain));
+    },
     lose(t) {
       ['G4', 'E4', 'C4'].forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.16, i === 2 ? 0.4 : 0.14, 0.25, sfxGain));
     }
   };
-  function sfx(name) {
+  function sfx(name, arg) {
     if (!settings.sfx || !ctx || ctx.state !== 'running' || !SFX[name]) return;
-    SFX[name](ctx.currentTime + 0.01);
+    SFX[name](ctx.currentTime + 0.01, arg);
   }
 
   // 最初の操作で音を使えるようにする（スマホの決まり）

@@ -282,7 +282,8 @@ async function boot() {
   const screens = screensMod.createScreens({
     progress, onPickStage: i => goStage(i),
     canUseReady: () => canUseItems(),
-    onUseItem: (id, arg) => useItem(id, arg)
+    onUseItem: (id, arg) => useItem(id, arg),
+    sfx: (name, arg) => sound.sfx(name, arg)
   });
 
   // ---- 景品 ----

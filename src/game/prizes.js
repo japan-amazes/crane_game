@@ -8,7 +8,7 @@
 import { paintArt } from './prizeArt.js';
 
 export const MAX_STARS = 5;
-export const DUP_POINTS = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };   // ダブりでもらえるポイント（★の数）。交換などの使い道は未定
+export const DUP_POINTS = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };   // ダブりでもらえるポイント（★の数）。アイテム交換所で使う
 
 // shape：絵の形 / c：主な色 / c2：差し色 / label：絵の中のラベル文字
 export const CATEGORIES = [
@@ -88,8 +88,10 @@ export const ALL_ITEMS = CATEGORIES.flatMap(cat => cat.items.map(it => ({ ...it,
 export function findItem(id) { return ALL_ITEMS.find(it => it.id === id); }
 
 // 抽選：指定した★の品の中から等確率
-export function drawPrize(stars, rand = Math.random) {
-  const pool = ALL_ITEMS.filter(it => it.rarity === stars);
+// filter：さらにしぼる条件（カテゴリー指定券・未所持確定券）。しぼって1つもなければ★だけで選ぶ
+export function drawPrize(stars, rand = Math.random, filter = null) {
+  let pool = ALL_ITEMS.filter(it => it.rarity === stars);
+  if (filter && pool.some(filter)) pool = pool.filter(filter);
   return pool[Math.floor(rand() * pool.length)];
 }
 

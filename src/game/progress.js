@@ -1,14 +1,17 @@
 // =============================================================
 // 遊びの記録（スマホの中に保存）
-// ステージの進み具合・クリア済み・コレクション・ポイント・確定チケット・クレジット
+// ステージの進み具合・クリア済み・コレクション・ポイント・アイテム・カードパック・クレジット
 // =============================================================
 import { CATEGORIES, findItem, DUP_POINTS } from './prizes.js';
+import { findItemDef, drawCard, PACK_CARDS, BOOST_MS } from './items.js';
 
 const KEY = 'crane.progress.v1';
 const OLD_STAGE_KEY = 'crane.stage.v1';
 export const DAILY_CREDITS = 10;          // 1日1回（その日最初に開いたとき）もらえる
 export const REGEN_MAX = 10;              // 時間で回復するのはここまで
 export const REGEN_MS = 6 * 60 * 1000;    // 6分で1クレジット回復（0から1時間で満タン）
+const BOOST_REGEN_MAX = 15;               // 回復上限アップが効いている間の上限
+const BOOST_REGEN_MS = 4 * 60 * 1000;     // 回復の速さアップが効いている間
 
 function today() {
   const d = new Date();
@@ -22,7 +25,10 @@ export function createProgress(stageTotal) {
     cleared: [],       // クリア済みのステージ番号
     box: {},           // 景品ID → 取った回数
     points: 0,
-    tickets: 0,
+    items: {},         // アイテムID → 持っている数
+    boosts: {},        // 強化アイテムID → 切れる時刻
+    packs: 0,          // まだ開けていないカードパック
+    retryArmed: false, // リトライ券を使用中（次にはずれたらクレジットが戻る）
     completed: [],     // コンプリート済みのカテゴリーID（ごほうびは1回だけ）
     credits: DAILY_CREDITS,
     creditDay: today(),
@@ -48,25 +54,35 @@ export function createProgress(stageTotal) {
   }
 
   if (!Number.isFinite(st.regenAt)) st.regenAt = Date.now();
+  // 前の版の確定チケットは、カードパックに置き換える
+  if (st.tickets) { st.packs += st.tickets; }
+  delete st.tickets;
+
+  // 強化が効いているか・回復の上限と間隔
+  function boostOn(id) { return (st.boosts[id] || 0) > Date.now(); }
+  function regenMax() { return boostOn('regenMax') ? BOOST_REGEN_MAX : REGEN_MAX; }
+  function regenMs() { return boostOn('regenFast') ? BOOST_REGEN_MS : REGEN_MS; }
 
   // クレジットの更新
   //   10より少ないときは、6分ごとに1ずつ回復（閉じていた間の分もまとめて）。10以上のときは回復しない
+  //   （強化が効いている間は、上限15・4分ごと）
   //   日付が変わっていたら、1日1回の分を足す（残りはそのまま持ち越す）
   function refreshCredits() {
     let changed = false;
     const d = today(), now = Date.now();
-    if (st.credits >= REGEN_MAX) {
+    const max = regenMax(), ms = regenMs();
+    if (st.credits >= max) {
       if (st.regenAt !== now) { st.regenAt = now; changed = true; }   // 満タンの間は数え始めない
     } else {
-      const n = Math.floor((now - st.regenAt) / REGEN_MS);
+      const n = Math.floor((now - st.regenAt) / ms);
       if (n > 0) {
-        st.credits = Math.min(REGEN_MAX, st.credits + n);
-        st.regenAt = st.credits >= REGEN_MAX ? now : st.regenAt + n * REGEN_MS;
+        st.credits = Math.min(max, st.credits + n);
+        st.regenAt = st.credits >= max ? now : st.regenAt + n * ms;
         changed = true;
       }
     }
     // 1日1回の分は、時間の回復のあとに足す（閉じていた間の回復を先に済ませる）
-    if (st.creditDay !== d) { st.creditDay = d; st.credits += DAILY_CREDITS; changed = true; if (st.credits >= REGEN_MAX) st.regenAt = now; }
+    if (st.creditDay !== d) { st.creditDay = d; st.credits += DAILY_CREDITS; changed = true; if (st.credits >= max) st.regenAt = now; }
     if (changed) save();
   }
   refreshCredits();
@@ -75,13 +91,13 @@ export function createProgress(stageTotal) {
     get stage() { return st.stage; },
     get frontier() { return st.frontier; },
     get points() { return st.points; },
-    get tickets() { return st.tickets; },
     get credits() { refreshCredits(); return st.credits; },
     // 次の回復までの残り（ミリ秒）。10以上で回復しないときは null
     get regenRemain() {
       refreshCredits();
-      return st.credits >= REGEN_MAX ? null : Math.max(0, REGEN_MS - (Date.now() - st.regenAt));
+      return st.credits >= regenMax() ? null : Math.max(0, regenMs() - (Date.now() - st.regenAt));
     },
+    get regenMax() { return regenMax(); },
     isCleared(i) { return clearedSet.has(i); },
     clearedCount() { return clearedSet.size; },
     // 先頭より前で、まだクリアしていないステージ（スキップしたもの）
@@ -126,8 +142,56 @@ export function createProgress(stageTotal) {
     },
     addCredit(n = 1) { refreshCredits(); st.credits += n; save(); },
 
-    // ---- 確定チケット ----
-    useTicket() { if (st.tickets <= 0) return false; st.tickets--; save(); return true; },
+    // ---- アイテム ----
+    itemCount(id) { return st.items[id] || 0; },
+    // ポイントで交換。足りなければ false
+    buyItem(id) {
+      const def = findItemDef(id);
+      if (!def || st.points < def.price) return false;
+      st.points -= def.price;
+      st.items[id] = (st.items[id] || 0) + 1;
+      save();
+      return true;
+    },
+    // 1つ使う（数を減らして、その場で効くものは効かせる）。持っていなければ false
+    useItem(id) {
+      if (!(st.items[id] > 0)) return false;
+      st.items[id]--;
+      const def = findItemDef(id);
+      if (id === 'credit10') { refreshCredits(); st.credits += 10; }
+      if (id === 'retry') st.retryArmed = true;
+      if (def.boost) {
+        refreshCredits();   // 切り替わる前の分の回復を済ませる
+        st.boosts[id] = Math.max(st.boosts[id] || 0, Date.now()) + BOOST_MS;   // 効いている間なら時間を延ばす
+      }
+      save();
+      return true;
+    },
+    // 強化の残り時間（ミリ秒）。効いていなければ 0
+    boostRemain(id) { return Math.max(0, (st.boosts[id] || 0) - Date.now()); },
+    get retryArmed() { return st.retryArmed; },
+    // はずれたとき：リトライ券を使用中なら、クレジットを1戻して券を使い切る
+    refundRetry() {
+      if (!st.retryArmed) return false;
+      st.retryArmed = false; st.credits++; save();
+      return true;
+    },
+
+    // ---- カードパック ----
+    get packs() { return st.packs; },
+    // 1パック開ける：3枚引いて持ち物に入れる。引いたアイテムの一覧を返す
+    openPack() {
+      if (st.packs <= 0) return null;
+      st.packs--;
+      const cards = [];
+      for (let i = 0; i < PACK_CARDS; i++) {
+        const def = drawCard();
+        st.items[def.id] = (st.items[def.id] || 0) + 1;
+        cards.push(def);
+      }
+      save();
+      return cards;
+    },
 
     // ---- コレクション ----
     // 獲得した景品を入れる。戻り値：{ isNew, points, completedCat }
@@ -143,13 +207,13 @@ export function createProgress(stageTotal) {
     },
   };
 
-  // カテゴリーの9品がそろったら、確定チケットを1枚（カテゴリーごとに1回だけ）
+  // カテゴリーの9品がそろったら、カードパックを1つ（カテゴリーごとに1回だけ）
   function checkComplete(catId) {
     if (st.completed.includes(catId)) return null;
     const cat = CATEGORIES.find(c => c.id === catId);
     if (!cat.items.every(it => (st.box[it.id] || 0) > 0)) return null;
     st.completed.push(catId);
-    st.tickets++;
+    st.packs++;
     return cat;
   }
 }

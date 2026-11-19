@@ -136,7 +136,6 @@
   .sounds { display: flex; gap: 6px; margin-top: 6px; }
   .sounds button { flex: 1; font-size: 13px; padding: 5px 6px; }
   .sounds button.active { color: #fff; }
-  #btnTicket.active { background: linear-gradient(#ffe27a, #f6b51e); color: #5a2a00; border-color: #fff3b8; }
 
   /* 画面の高さが低い機種（SE など）では、さらに詰める */
   @media (max-height: 700px) {
@@ -187,6 +186,54 @@
   .m-ad { height: 220px; border-radius: 16px; background: #ffffff14; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; color: var(--sub); }
   .m-ad-t { font-size: 40px; font-weight: 800; color: #fff; }
   .m-ad .big { width: 60%; }
+  /* マイボックスの「景品」「アイテム」切り替え */
+  .m-mode { display: flex; gap: 6px; margin-bottom: 10px; }
+  .m-mode button { flex: 1; font-size: 15px; padding: 8px; position: relative; }
+  .m-mode button.on { background: linear-gradient(#ff8cc2, #ff3f8e); border-color: #ffd1e8; }
+  .m-mode i { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--gold);
+    color: #5a2a00; font-size: 12px; font-style: normal; line-height: 20px; }
+  .m-msg { background: #ffffff1c; border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; font-size: 13px; color: var(--gold); font-weight: 700; }
+  /* カードパック（アイテムタブ） */
+  .m-pack { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 16px; background: #ffffff14; margin-bottom: 10px; }
+  .m-pack-pic, .pk-pack { background: linear-gradient(135deg, #ffd166, #ff6fae 55%, #8a63d2); color: #fff; font-weight: 800;
+    text-align: center; border: 2px solid #fff; text-shadow: 0 1px 2px #0006; }
+  .m-pack-pic { width: 46px; height: 62px; border-radius: 8px; font-size: 10px; line-height: 1.2; display: flex; align-items: center; justify-content: center; }
+  .m-pack-txt { flex: 1; font-size: 14px; }
+  .m-pack-txt small { display: block; font-size: 11px; color: var(--sub); font-weight: 500; }
+  .m-pack .big { padding: 8px 14px; font-size: 15px; }
+  .m-effects { font-size: 12px; background: #ffffff10; border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; line-height: 1.7; }
+  /* アイテムの一覧（アイテムタブ・交換所） */
+  .m-items { display: flex; flex-direction: column; gap: 6px; }
+  .m-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; background: #ffffff14; }
+  .m-item.none { opacity: 0.55; }
+  .m-item-ic { font-size: 26px; width: 34px; text-align: center; }
+  .m-item-txt { flex: 1; font-size: 14px; }
+  .m-item-txt span { font-size: 12px; color: var(--gold); margin-left: 4px; }
+  .m-item-txt small { display: block; font-size: 11px; color: var(--sub); font-weight: 500; line-height: 1.4; }
+  .m-item button { flex: 0 0 auto; font-size: 13px; padding: 8px 10px; min-width: 64px; }
+  .m-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .m-cats button { border-color: var(--cat); padding: 12px; font-size: 15px; }
+  /* カードパックを開ける */
+  .pk-stage { min-height: 200px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .pk-pack { width: 120px; height: 164px; border-radius: 14px; font-size: 20px; line-height: 1.3; box-shadow: 0 0 24px #ffd16688;
+    animation: pk-wiggle 1.2s ease-in-out infinite; }
+  .pk-pack small { display: block; font-size: 11px; margin-top: 10px; }
+  .pk-pack.open { animation: pk-burst 0.35s ease-in forwards; }
+  @keyframes pk-wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+  @keyframes pk-burst { to { transform: scale(1.3); opacity: 0; } }
+  .pk-cards { display: flex; gap: 10px; }
+  .pk-cards[hidden] { display: none; }
+  .pk-card { position: relative; width: 96px; height: 136px; padding: 0; border: none; background: none; perspective: 600px; }
+  .pk-card span { position: absolute; inset: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    backface-visibility: hidden; transition: transform 0.45s; border: 2px solid #fff; }
+  .pk-back { background: repeating-linear-gradient(45deg, #8a63d2 0 8px, #6a3fb8 8px 16px); font-size: 40px; color: #fff; font-weight: 800; }
+  .pk-front { background: linear-gradient(#fff, #ffe3f1); color: #3a1460; transform: rotateY(180deg); gap: 8px; padding: 6px; }
+  .pk-front i { font-style: normal; font-size: 38px; }
+  .pk-front b { font-size: 12px; line-height: 1.3; }
+  .pk-card.flip .pk-back { transform: rotateY(180deg); }
+  .pk-card.flip .pk-front { transform: rotateY(360deg); }
+  .pk-ok { width: 100%; }
+  #hud .hud-e { font-size: 12px; }
 
   /* ---- 数値調整パネル（開発用） ---- */
   #debug { position: fixed; inset: 0; overflow-y: auto; background: #1e1036f7; padding: calc(14px + var(--sat)) 14px 40px; z-index: 10; font-weight: 500; }
@@ -246,7 +293,7 @@
     box-shadow: inset 0 2px 0 #ffffff55, 0 3px 0 #06275f, 0 0 12px #2fb8ff99; }
   body.theme-cool .views button.active { background: linear-gradient(#1f3f6e, #0d1a33); border-color: #5fd0ff;
     box-shadow: inset 0 1px 0 #ffffff33, 0 0 12px #2fb8ffaa; }
-  body.theme-cool .views #btnPeek.active, body.theme-cool #btnTicket.active { background: linear-gradient(#e9eef5, #9aa6b8); color: #0b1220; border-color: #fff; }
+  body.theme-cool .views #btnPeek.active { background: linear-gradient(#e9eef5, #9aa6b8); color: #0b1220; border-color: #fff; }
   body.theme-cool .hold { color: #8e99ab; border-color: #4a5466; background: linear-gradient(#2a313d, #12161e); box-shadow: inset 0 2px 0 #ffffff22, 0 5px 0 #000; }
   body.theme-cool .hold:not(:disabled) { color: #fff; border-color: #9fe3ff;
     background: linear-gradient(#2f9cff, #0a4fc0); box-shadow: inset 0 3px 0 #ffffff55, 0 5px 0 #06275f, 0 0 16px #2fb8ffaa; }
@@ -264,6 +311,12 @@
   body.theme-cool .m-cat { background: #ffffff08; }
   body.theme-cool .m-tabs button.on { color: #0b1220; }
   body.theme-cool .m-cell.got .m-name, body.theme-cool .m-num { color: #0b1220; }
+  body.theme-cool .m-mode button.on { background: linear-gradient(#2f9cff, #0a4fc0); border-color: #9fe3ff; }
+  body.theme-cool .m-mode i { color: #0b1220; background: #5fd0ff; }
+  body.theme-cool .m-msg, body.theme-cool .m-item-txt span { color: #5fd0ff; }
+  body.theme-cool .m-pack-pic, body.theme-cool .pk-pack { background: linear-gradient(135deg, #5fd0ff, #2f6bff 55%, #10182a); }
+  body.theme-cool .pk-back { background: repeating-linear-gradient(45deg, #1e3a66 0 8px, #12223d 8px 16px); }
+  body.theme-cool .pk-front { background: linear-gradient(#fff, #d8f2ff); color: #0b1220; }
   body.theme-cool #debug { background: #05070cf7; }
   body.theme-cool .dbg-row select { background: #161b24; border-color: #4a5466; }
   body.theme-cool .dbg-info { background: #161b24; }
@@ -297,7 +350,7 @@
       <button id="btnBox">マイボックス</button>
     </div>
     <div class="sounds">
-      <button id="btnTicket">確定チケット</button>
+      <button id="btnShop">交換所</button>
       <button id="btnBgm">♪ BGM</button>
       <button id="btnSfx">効果音</button>
     </div>

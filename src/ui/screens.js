@@ -1,10 +1,13 @@
 // =============================================================
-// ゲームの画面：マイボックス（コレクション）・ステージ一覧・広告（仮）
+// ゲームの画面：マイボックス（景品・アイテム）・アイテム交換所・カードパック・ステージ一覧・広告（仮）
 // どれも画面全体にかぶせる表示（モーダル）
 // =============================================================
 import { CATEGORIES, paintPrize, DUP_POINTS } from '../game/prizes.js';
+import { ITEMS, PACK_CARDS } from '../game/items.js';
 
-export function createScreens({ progress, onPickStage }) {
+// canUseReady()：①を押す前か（プレイ中に使えないアイテムの判定）
+// onUseItem(id, arg)：アイテムを使う（ゲーム側で処理）。戻り値 { ok, msg }
+export function createScreens({ progress, onPickStage, canUseReady, onUseItem }) {
   const root = document.getElementById('modal');
 
   function open(html) {
@@ -28,18 +31,23 @@ export function createScreens({ progress, onPickStage }) {
     return c;
   }
 
+  // 残り時間の表示（時:分）
+  function hm(ms) {
+    const m = Math.ceil(ms / 60000);
+    return `${Math.floor(m / 60)}時間${String(m % 60).padStart(2, '0')}分`;
+  }
+
   // ---- マイボックス ----
+  // 上のタブで「景品」と「アイテム」を切り替える
+  let boxMode = 'prize';
   let boxTab = 0;
   function showBox() {
+    if (boxMode === 'item') { showItems(); return; }
     const cat = CATEGORIES[boxTab];
     const have = cat.items.filter(it => progress.count(it.id) > 0).length;
     const done = have === cat.items.length;
     open(`
-      <div class="m-head">
-        <b>マイボックス</b>
-        <span class="m-pt">ポイント <b>${progress.points}</b>pt</span>
-        <button class="m-x" data-close>×</button>
-      </div>
+      ${boxHead()}
       <div class="m-tabs">${CATEGORIES.map((c, i) => {
         const h = c.items.filter(it => progress.count(it.id) > 0).length;
         return `<button data-tab="${i}" class="${i === boxTab ? 'on' : ''}" style="--cat:${c.color}">${c.name}<small>${h}/9</small></button>`;
@@ -56,13 +64,136 @@ export function createScreens({ progress, onPickStage }) {
             ${n > 1 ? `<div class="m-num">×${n}</div>` : ''}
           </div>`;
         }).join('')}</div>
-        <div class="m-note">同じ景品をまた取ると、★の数だけポイントが貯まります（★1＝${DUP_POINTS[1]}pt … ★5＝${DUP_POINTS[5]}pt）。カテゴリーをコンプリートすると確定チケットが1枚もらえます</div>
+        <div class="m-note">同じ景品をまた取ると、★の数だけポイントが貯まります（★1＝${DUP_POINTS[1]}pt … ★5＝${DUP_POINTS[5]}pt）。カテゴリーをコンプリートするとカードパックが1つもらえます</div>
       </div>`);
+    bindBoxMode();
     root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { boxTab = Number(b.dataset.tab); showBox(); }));
     root.querySelectorAll('.m-cell').forEach(cell => {
       const it = cat.items.find(x => x.id === cell.dataset.item);
       if (progress.count(it.id) > 0) cell.querySelector('.m-pic').appendChild(prizeCanvas(it, 64));
     });
+  }
+
+  function boxHead() {
+    return `
+      <div class="m-head">
+        <b>マイボックス</b>
+        <span class="m-pt">ポイント <b>${progress.points}</b>pt</span>
+        <button class="m-x" data-close>×</button>
+      </div>
+      <div class="m-mode">
+        <button data-mode="prize" class="${boxMode === 'prize' ? 'on' : ''}">景品</button>
+        <button data-mode="item" class="${boxMode === 'item' ? 'on' : ''}">アイテム${progress.packs ? `<i>${progress.packs}</i>` : ''}</button>
+      </div>`;
+  }
+  function bindBoxMode() {
+    root.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => { boxMode = b.dataset.mode; showBox(); }));
+  }
+
+  // ---- マイボックス：アイテム ----
+  function showItems(msg = '') {
+    const ready = canUseReady();
+    const effects = [];
+    if (progress.retryArmed) effects.push('🔁 リトライ券：使用中（次にはずれたらクレジットが戻ります）');
+    for (const it of ITEMS.filter(x => x.boost)) {
+      const r = progress.boostRemain(it.id);
+      if (r > 0) effects.push(`${it.icon} ${it.name}：あと${hm(r)}`);
+    }
+    open(`
+      ${boxHead()}
+      ${msg ? `<div class="m-msg">${msg}</div>` : ''}
+      <div class="m-pack">
+        <div class="m-pack-pic">CARD<br>PACK</div>
+        <div class="m-pack-txt">カードパック <b>×${progress.packs}</b><small>${PACK_CARDS}枚入り。カテゴリーをコンプリートするともらえます</small></div>
+        <button class="big" data-open ${progress.packs ? '' : 'disabled'}>開ける</button>
+      </div>
+      ${effects.length ? `<div class="m-effects">${effects.map(e => `<div>${e}</div>`).join('')}</div>` : ''}
+      <div class="m-items">${ITEMS.map(it => {
+        const n = progress.itemCount(it.id);
+        const lock = it.when === 'ready' && !ready;
+        return `<div class="m-item ${n ? '' : 'none'}">
+          <div class="m-item-ic">${it.icon}</div>
+          <div class="m-item-txt"><b>${it.name}</b> <span>×${n}</span><small>${it.desc}</small></div>
+          <button data-use="${it.id}" ${n && !lock ? '' : 'disabled'}>使う</button>
+        </div>`;
+      }).join('')}</div>
+      <div class="m-note">${ready ? '' : '※ 景品やステージが変わるアイテムは、①を押す前に使えます。'}アイテムは「交換所」でポイントと交換できます</div>`);
+    bindBoxMode();
+    const btnOpen = root.querySelector('[data-open]');
+    if (btnOpen) btnOpen.addEventListener('click', () => { const cards = progress.openPack(); if (cards) showPackOpen(cards); });
+    root.querySelectorAll('[data-use]').forEach(b => b.addEventListener('click', () => {
+      const id = b.dataset.use;
+      if (id === 'catPick') { showCatPick(); return; }
+      const r = onUseItem(id);
+      if (r && r.close) { close(); return; }
+      showItems(r ? r.msg : '');
+    }));
+  }
+
+  // カテゴリー指定券：カテゴリーを選ぶ
+  function showCatPick() {
+    open(`
+      <div class="m-head"><b>カテゴリーを選ぶ</b><button class="m-x" data-back>×</button></div>
+      <div class="m-sum">今の景品を、選んだカテゴリーの景品に変えます（★の数は今のステージのまま）</div>
+      <div class="m-cats">${CATEGORIES.map(c => `<button data-cat="${c.id}" style="--cat:${c.color}">${c.name}</button>`).join('')}</div>`);
+    root.querySelector('[data-back]').addEventListener('click', () => showItems());
+    root.querySelectorAll('[data-cat]').forEach(b => b.addEventListener('click', () => {
+      const r = onUseItem('catPick', b.dataset.cat);
+      if (r && r.close) { close(); return; }
+      showItems(r ? r.msg : '');
+    }));
+  }
+
+  // ---- カードパックを開ける ----
+  // パックをタップ → 裏向きのカードが3枚 → 1枚ずつタップしてめくる
+  function showPackOpen(cards) {
+    open(`
+      <div class="m-head"><b>カードパック</b></div>
+      <div class="pk-stage">
+        <button class="pk-pack" data-pack>CARD<br>PACK<small>タップして開ける</small></button>
+        <div class="pk-cards" hidden>${cards.map((c, i) => `
+          <button class="pk-card" data-card="${i}">
+            <span class="pk-back">?</span>
+            <span class="pk-front"><i>${c.icon}</i><b>${c.name}</b></span>
+          </button>`).join('')}</div>
+      </div>
+      <div class="m-sum pk-msg">パックをタップしてください</div>
+      <button class="big pk-ok" data-ok hidden>OK</button>`);
+    const pack = root.querySelector('[data-pack]'), list = root.querySelector('.pk-cards');
+    const msg = root.querySelector('.pk-msg'), ok = root.querySelector('[data-ok]');
+    let flipped = 0;
+    pack.addEventListener('click', () => {
+      pack.classList.add('open');
+      setTimeout(() => { pack.hidden = true; list.hidden = false; msg.textContent = 'カードをタップしてめくってください'; }, 350);
+    });
+    root.querySelectorAll('[data-card]').forEach(b => b.addEventListener('click', () => {
+      if (b.classList.contains('flip')) return;
+      b.classList.add('flip');
+      if (++flipped === cards.length) { msg.textContent = 'アイテムに入りました'; ok.hidden = false; }
+    }));
+    ok.addEventListener('click', () => { boxMode = 'item'; showItems(); });
+  }
+
+  // ---- アイテム交換所 ----
+  function showShop(msg = '') {
+    open(`
+      <div class="m-head">
+        <b>アイテム交換所</b>
+        <span class="m-pt">ポイント <b>${progress.points}</b>pt</span>
+        <button class="m-x" data-close>×</button>
+      </div>
+      ${msg ? `<div class="m-msg">${msg}</div>` : ''}
+      <div class="m-items">${ITEMS.map(it => `
+        <div class="m-item">
+          <div class="m-item-ic">${it.icon}</div>
+          <div class="m-item-txt"><b>${it.name}</b> <span>所持 ×${progress.itemCount(it.id)}</span><small>${it.desc}</small></div>
+          <button data-buy="${it.id}" ${progress.points >= it.price ? '' : 'disabled'}>${it.price}pt</button>
+        </div>`).join('')}</div>
+      <div class="m-note">交換したアイテムは、マイボックスの「アイテム」から使えます。ポイントは、同じ景品をまた取ると貯まります</div>`);
+    root.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
+      const it = ITEMS.find(x => x.id === b.dataset.buy);
+      showShop(progress.buyItem(it.id) ? `${it.name}と交換しました` : 'ポイントが足りません');
+    }));
   }
 
   // ---- ステージ一覧 ----
@@ -107,10 +238,10 @@ export function createScreens({ progress, onPickStage }) {
   function showNoCredit(onDone) {
     open(`
       <div class="m-head"><b>クレジットがありません</b><button class="m-x" data-close>×</button></div>
-      <div class="m-sum">6分ごとに1クレジット回復します（10まで）。広告を見ると${AD_CREDITS}クレジット追加できます</div>
+      <div class="m-sum">6分ごとに1クレジット回復します（${progress.regenMax}まで）。広告を見ると${AD_CREDITS}クレジット追加できます</div>
       <button class="big" data-ad>広告を見て ＋${AD_CREDITS} クレジット</button>`);
     root.querySelector('[data-ad]').addEventListener('click', () => showAd(onDone));
   }
 
-  return { showBox, showStages, showAd, showNoCredit, close, prizeCanvas, get isOpen() { return !root.hidden; } };
+  return { showBox, showShop, showStages, showAd, showNoCredit, close, prizeCanvas, get isOpen() { return !root.hidden; } };
 }

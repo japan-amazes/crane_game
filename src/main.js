@@ -198,7 +198,7 @@ async function boot() {
   const status = document.getElementById('status');
   status.textContent = '読み込み中…';
 
-  const [RAPIER, THREE, sceneMod, debugMod, soundMod, prizeMod, progressMod, screensMod, presetJson, stageJson] = await Promise.all([
+  const [RAPIER, THREE, sceneMod, debugMod, soundMod, prizeMod, progressMod, screensMod, itemsMod, presetJson, stageJson] = await Promise.all([
     import(LIB.rapier).then(m => m.default || m),
     import(LIB.three),
     import('./render/scene.js'),
@@ -207,6 +207,7 @@ async function boot() {
     import('./game/prizes.js'),
     import('./game/progress.js'),
     import('./ui/screens.js'),
+    import('./game/items.js'),
     fetch('./presets/hook-presets.json').then(r => r.json()),
     fetch('./presets/stages.json').then(r => r.json())
   ]);
@@ -236,13 +237,18 @@ async function boot() {
     ]);
   } catch { /* フォントが使えない環境 */ }
   const view = sceneMod.createScene(THREE, document.getElementById('view'));
-  const screens = screensMod.createScreens({ progress, onPickStage: i => goStage(i) });
+  const screens = screensMod.createScreens({
+    progress, onPickStage: i => goStage(i),
+    canUseReady: () => !!round && round.arm.phase === PHASE.READY && !paid,
+    onUseItem: (id, arg) => useItem(id, arg)
+  });
 
   // ---- 景品 ----
   // ステージの★レベルの品からランダムで1つ。はずれて続けている間・「最初から」では変わらない
   let prize = null;
-  function newPrize() {
-    prize = prizeMod.drawPrize(stageStars(stages, progress.stage));
+  // filter：選べる景品をしぼる（カテゴリー指定券・未所持確定券）
+  function newPrize(filter) {
+    prize = prizeMod.drawPrize(stageStars(stages, progress.stage), Math.random, filter);
     view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
     view.setPrizeBoxArt(prizeBoxArt(prize));
   }
@@ -346,11 +352,9 @@ async function boot() {
   for (const b of document.querySelectorAll('#themeToggle button')) b.addEventListener('click', () => applyTheme(b.dataset.theme, true));
   applyTheme(theme, false);
 
-  // ---- クレジット・確定チケット ----
+  // ---- クレジット ----
   // 1回のプレイ（はずれ後に続ける場合も）で1クレジット。①を押したときに使う
   let paid = false;          // このプレイの分はもう使ったか
-  let ticketArmed = false;   // 確定チケットを使う予定（①を押したときに消費）
-  let ticketUsed = false;    // このプレイで確定チケットを使った
   const hud = document.getElementById('hud');
   // 次の回復までの残り時間（10以上・無制限のときは出さない）
   function regenText(unl) {
@@ -364,11 +368,60 @@ async function boot() {
     const unl = debug.unlimited;
     hud.innerHTML = `
       <span class="hud-c">クレジット <b>${unl ? '∞' : progress.credits}</b>${regenText(unl)}</span>
-      <span class="hud-t">確定チケット <b>${progress.tickets}</b></span>
-      <span class="hud-p"><b>${progress.points}</b>pt</span>`;
-    btnTicket.disabled = round.arm.phase !== PHASE.READY || paid || (progress.tickets <= 0 && !ticketArmed);
-    btnTicket.classList.toggle('active', ticketArmed);
-    btnTicket.textContent = ticketArmed ? '確定チケット：使う' : '確定チケット';
+      <span class="hud-p"><b>${progress.points}</b>pt</span>
+      ${effectChips()}`;
+  }
+  // 使用中のアイテム（リトライ券・強化）を小さく表示
+  function effectChips() {
+    const out = [];
+    if (progress.retryArmed) out.push('🔁');
+    for (const it of itemsMod.ITEMS.filter(x => x.boost)) {
+      const r = progress.boostRemain(it.id);
+      if (r > 0) out.push(`${it.icon}${Math.ceil(r / 3600000)}h`);
+    }
+    return out.length ? `<span class="hud-e">${out.join(' ')}</span>` : '';
+  }
+
+  // ---- アイテムを使う（マイボックスから）----
+  // 戻り値 { ok, msg, close }（close：画面を閉じてゲームに戻る）
+  function useItem(id, arg) {
+    const def = itemsMod.findItemDef(id);
+    const ready = round && round.arm.phase === PHASE.READY && !paid;
+    if (def.when === 'ready' && !ready) return { ok: false, msg: '①を押す前に使えます' };
+    const stars = stageStars(stages, progress.stage);
+    if (id === 'catPick') {
+      const filter = it => it.cat === arg;
+      if (!prizeMod.ALL_ITEMS.some(it => it.rarity === stars && filter(it))) return { ok: false, msg: 'そのカテゴリーにはこの★の景品がありません' };
+      progress.useItem(id);
+      newPrize(filter);
+      showHud();
+      return { ok: true, close: true };
+    }
+    if (id === 'newPick') {
+      const unowned = prizeMod.ALL_ITEMS.filter(it => it.rarity === stars && progress.count(it.id) === 0);
+      if (!unowned.length) return { ok: false, msg: 'この★の景品はすべて持っています' };
+      progress.useItem(id);
+      // 今の景品と同じカテゴリーに未所持があれば、そちらを優先
+      const sameCat = unowned.some(it => it.cat === prize.cat);
+      newPrize(it => progress.count(it.id) === 0 && (!sameCat || it.cat === prize.cat));
+      showHud();
+      return { ok: true, close: true };
+    }
+    if (id === 'skip') {
+      progress.useItem(id);
+      progress.skipStage();
+      goStage(progress.stage);
+      return { ok: true, close: true };
+    }
+    if (!progress.useItem(id)) return { ok: false, msg: '持っていません' };
+    showHud();
+    const msg = {
+      credit10: 'クレジットが10増えました',
+      retry: 'リトライ券を使いました。次にはずれたらクレジットが戻ります',
+      regenMax: '回復上限アップ：24時間、上限が15になります',
+      regenFast: '回復の速さアップ：24時間、4分ごとに回復します'
+    }[id];
+    return { ok: true, msg };
   }
   // ①を押したとき：まだ払っていなければクレジットを使う。足りなければ広告の案内
   function startPlay() {
@@ -378,7 +431,6 @@ async function boot() {
       return false;
     }
     paid = true;
-    if (ticketArmed) { ticketArmed = false; ticketUsed = progress.useTicket(); round.forceDrop = ticketUsed; }
     showHud();
     return true;
   }
@@ -440,7 +492,6 @@ async function boot() {
     view.setRound(round);
     stageLabel.textContent = `STAGE ${progress.stage + 1}${progress.isCleared(progress.stage) ? ' ✓' : ''}`;
     paid = false;
-    ticketUsed = false;
     acc = 0;
     showResult(null);
     setStatus();
@@ -464,8 +515,6 @@ async function boot() {
     }
     if (round && round.result === 'lose') {
       paid = false;
-      ticketUsed = false;
-      round.forceDrop = false;
       showResult(null);
       zoomAt = null;
       unzoomAt = null;
@@ -479,9 +528,10 @@ async function boot() {
   }
 
   let lastWin = null;   // 獲得したときの記録（結果画面に出す）
+  let refunded = false; // はずれでリトライ券が効いた
   function onPhase(next) {
     if (next === PHASE.DONE) {
-      if (ticketUsed) round.result = 'win';   // 確定チケット：必ず獲得
+      refunded = round.result !== 'win' && paid && !debug.unlimited && progress.refundRetry();
       if (round.result === 'win') {
         const played = progress.stage;
         const got = progress.addPrize(prize.id);
@@ -528,13 +578,8 @@ async function boot() {
   const btnX = document.getElementById('btnX');
   const btnZ = document.getElementById('btnZ');
   const btnPeek = document.getElementById('btnPeek');
-  const btnTicket = document.getElementById('btnTicket');
   btnPeek.addEventListener('click', () => { if (!btnPeek.disabled) setPeek(!peek); });
-  btnTicket.addEventListener('click', () => {
-    if (btnTicket.disabled) return;
-    ticketArmed = !ticketArmed;
-    showHud();
-  });
+  document.getElementById('btnShop').addEventListener('click', () => screens.showShop());
   document.getElementById('btnBox').addEventListener('click', () => screens.showBox());
   document.getElementById('btnStages').addEventListener('click', () => screens.showStages());
   // ①：プレイ開始の押下ならクレジットを使う（足りなければ動かさない）
@@ -577,11 +622,13 @@ async function boot() {
         <div class="res-pic"></div>
         <div><b>${w.item.name}</b> <span class="stars">${'★'.repeat(w.item.rarity)}</span><br>
         ${w.isNew ? '<span class="res-new">NEW！ マイボックスに入りました</span>' : `ダブり：<b>＋${w.points}pt</b>`}
-        ${w.completedCat ? `<br><span class="res-new">${w.completedCat.name} コンプリート！ 確定チケット＋1</span>` : ''}</div>
+        ${w.completedCat ? `<br><span class="res-new">${w.completedCat.name} コンプリート！ カードパック＋1</span>` : ''}</div>
       </div>`;
+    const refundRow = refunded ? '<div class="res-row res-new">🔁 リトライ券：クレジットが1戻りました</div>' : '';
     resultEl.innerHTML = `
       <div class="res-title ${r.result}">${title}</div>
       ${prizeRow}
+      ${refundRow}
       <div class="res-row">引き上げ直前：${hookText}</div>
       <div class="res-row">板の持ち上がり：${r.maxLift.toFixed(1)}cm</div>
       <div class="res-row">① 押した瞬間の揺れ：${sw(r.swing.x)}</div>

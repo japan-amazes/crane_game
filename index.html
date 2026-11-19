@@ -136,7 +136,7 @@
   .hold.on { transform: translateY(3px); box-shadow: inset 0 3px 0 #ffffff55, 0 2px 0 #a3185a, 0 0 18px #ffd34d; }
   .hold:disabled { opacity: 0.6; }
 
-  .row3 { display: flex; gap: 6px; margin-top: 8px; }
+  .row3 { display: flex; gap: 6px; margin-top: 28px; }   /* ①②を押しながら下のボタンを押し間違えないよう、間を空ける */
   .row3 button { flex: 1; }
   .sounds { display: flex; gap: 6px; margin-top: 6px; }
   .sounds button { flex: 1; font-size: 13px; padding: 5px 6px; }
@@ -145,7 +145,7 @@
   /* 画面の高さが低い機種（SE など）では、さらに詰める */
   @media (max-height: 700px) {
     .views { margin-bottom: 6px; }
-    .row3 { margin-top: 6px; }
+    .row3 { margin-top: 20px; }
     .sounds { margin-top: 5px; }
     button { font-size: 13px; padding: 5px 6px; }
     .views button { padding: 5px 6px; font-size: 13px; }

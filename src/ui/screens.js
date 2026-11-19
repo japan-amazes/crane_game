@@ -117,7 +117,7 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
           <button data-use="${it.id}" ${n && !lock ? '' : 'disabled'}>使う</button>
         </div>`;
       }).join('')}</div>
-      <div class="m-note">${ready ? '' : '※ 景品やステージが変わるアイテムは、①を押す前に使えます。'}アイテムは「交換所」でポイントと交換できます</div>`);
+      <div class="m-note">${ready ? '' : '※ 景品やステージが変わるアイテムは、プレイ中は使えません。'}アイテムは「交換所」でポイントと交換できます</div>`);
     bindBoxMode();
     const btnOpen = root.querySelector('[data-open]');
     if (btnOpen) btnOpen.addEventListener('click', () => { const cards = progress.openPack(); if (cards) showPackOpen(cards); });

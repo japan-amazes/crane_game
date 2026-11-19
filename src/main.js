@@ -249,15 +249,18 @@ async function boot() {
   const view = sceneMod.createScene(THREE, document.getElementById('view'));
   const screens = screensMod.createScreens({
     progress, onPickStage: i => goStage(i),
-    canUseReady: () => !!round && round.arm.phase === PHASE.READY && !paid,
+    canUseReady: () => canUseItems(),
     onUseItem: (id, arg) => useItem(id, arg)
   });
 
   // ---- 景品 ----
   // ステージの★レベルの品からランダムで1つ。はずれて続けている間・「最初から」では変わらない
   let prize = null;
+  let pendingFilter = null;   // 獲得の結果画面で使った景品の券：次のステージの景品に使う
   // filter：選べる景品をしぼる（カテゴリー指定券・未所持確定券）
   function newPrize(filter) {
+    if (!filter && pendingFilter) filter = pendingFilter;
+    pendingFilter = null;
     prize = prizeMod.drawPrize(stageStars(stages, progress.stage), Math.random, filter);
     view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
     view.setPrizeBoxArt(prizeBoxArt(prize));
@@ -393,25 +396,32 @@ async function boot() {
   }
 
   // ---- アイテムを使う（マイボックスから）----
+  // 景品やステージが変わる券は、プレイ中（①を押してから結果が出るまで）以外ならいつでも使える
+  //   はずれの結果画面・初期位置へ戻っている間：今の景品がその場で変わる（次のプレイから）
+  //   獲得の結果画面：次のステージの景品に使う（予約）
+  function canUseItems() { return !!round && (!paid || round.arm.phase === PHASE.DONE); }
   // 戻り値 { ok, msg, close }（close：画面を閉じてゲームに戻る）
   function useItem(id, arg) {
     const def = itemsMod.findItemDef(id);
     if (training && def.when === 'ready') return { ok: false, msg: '特訓モード中は使えません' };
-    const ready = round && round.arm.phase === PHASE.READY && !paid;
-    if (def.when === 'ready' && !ready) return { ok: false, msg: '①を押す前に使えます' };
+    if (def.when === 'ready' && !canUseItems()) return { ok: false, msg: 'プレイ中は使えません' };
+    const nextStage = round.arm.phase === PHASE.DONE && round.result === 'win';   // 獲得の結果画面（ステージはもう次に進めてある）
     const stars = stageStars(stages, progress.stage);
+    if ((id === 'catPick' || id === 'newPick') && nextStage && pendingFilter) return { ok: false, msg: '次のステージ用の券はもう使っています' };
     if (id === 'catPick') {
       const filter = it => it.cat === arg;
       if (!prizeMod.ALL_ITEMS.some(it => it.rarity === stars && filter(it))) return { ok: false, msg: 'そのカテゴリーにはこの★の景品がありません' };
       progress.useItem(id);
+      if (nextStage) { pendingFilter = filter; return { ok: true, msg: 'カテゴリー指定券：次のステージの景品に使われます' }; }
       newPrize(filter);
       showHud();
       return { ok: true, close: true };
     }
     if (id === 'newPick') {
       const unowned = prizeMod.ALL_ITEMS.filter(it => it.rarity === stars && progress.count(it.id) === 0);
-      if (!unowned.length) return { ok: false, msg: 'この★の景品はすべて持っています' };
+      if (!unowned.length) return { ok: false, msg: `${nextStage ? '次のステージの' : 'この'}★の景品はすべて持っています` };
       progress.useItem(id);
+      if (nextStage) { pendingFilter = it => progress.count(it.id) === 0; return { ok: true, msg: '未所持確定券：次のステージの景品に使われます' }; }
       // 今の景品と同じカテゴリーに未所持があれば、そちらを優先
       const sameCat = unowned.some(it => it.cat === prize.cat);
       newPrize(it => progress.count(it.id) === 0 && (!sameCat || it.cat === prize.cat));

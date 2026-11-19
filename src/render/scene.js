@@ -363,9 +363,11 @@ export function createScene(THREE, canvas) {
         prevQ: new THREE.Quaternion(q.x, q.y, q.z, q.w)
       });
     }
+    fitFrame();   // 手前の枠も置き直す
     setView(viewName);
   }
 
+  const FRONT_ARM_HEIGHT = 45;
   // 各カメラの位置・注視点・画角を計算する
   function viewPose(name) {
     const h = round.machine.hookWorldBase();
@@ -376,7 +378,8 @@ export function createScene(THREE, canvas) {
       return (width / 2) / Math.tan(hfov / 2);
     };
     // 正面：板からアームまでの高さ全体が入るように引く
-    const top = round.preset.field.armHeight + 2;
+    //   距離は通常のアームの高さ（45cm）で決めて固定する（特訓でアームの高さを変えても、筐体の見え方は変わらない）
+    const top = FRONT_ARM_HEIGHT + 2;
     const fitH = (height, fovDeg) => (height / 2) / Math.tan(fovDeg * Math.PI / 360);
     if (name === 'zoom') {
       const d = Math.max(16, fit(11, 40));

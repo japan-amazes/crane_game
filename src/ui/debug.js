@@ -28,24 +28,24 @@ const SCHEMA = [
   { path: 'chain.length', label: 'チェーンの長さ', min: 8, max: 30, step: 0.1, unit: 'cm' },
   { path: 'chain.pitch', label: 'コマの長さ（ピッチ）', min: 0.5, max: 1.0, step: 0.05, unit: 'cm' },
   { path: 'chain.linearDamping', label: '揺れの残りにくさ', min: 0, max: 0.5, step: 0.05, unit: '' },
-  { path: 'chain.twistStiffness', label: 'ねじれの戻る強さ', min: 100, max: 1000, step: 20, unit: '' },
-  { path: 'chain.twistDamping', label: 'ねじれの止まりやすさ', min: 0, max: 150, step: 2, unit: '' },
+  { path: 'chain.twistStiffness', label: 'ねじれの戻る強さ', min: 100, max: 600, step: 20, unit: '' },
+  { path: 'chain.twistDamping', label: 'ねじれの止まりやすさ', min: 0, max: 60, step: 2, unit: '' },
   { group: 'リング' },
   { path: 'ring.diameter', label: '直径（外径）', min: 3, max: 10, step: 0.1, unit: 'cm' },
   { path: 'ring.thickness', label: '太さ', min: 0.4, max: 1.0, step: 0.05, unit: 'cm' },
   { path: 'ring.mass', label: '重さ', min: 8, max: 30, step: 1, unit: 'g' },
   { path: 'ring.yawDeg', label: '向き', min: 0, max: 180, step: 5, unit: '°' },
-  { path: 'ring.friction', label: 'すべりにくさ', min: 0, max: 1.2, step: 0.05, unit: '' },
-  { path: 'ring.angularDamping', label: '回りにくさ', min: 0, max: 5, step: 0.1, unit: '' },
-  { path: 'ring.initialTwistDeg', label: '初期のねじれ', min: -180, max: 180, step: 5, unit: '°' },
+  { path: 'ring.friction', label: 'すべりにくさ', min: 0.05, max: 0.8, step: 0.05, unit: '' },
+  { path: 'ring.angularDamping', label: '回りにくさ', min: 0.2, max: 2, step: 0.1, unit: '' },
+  { path: 'ring.initialTwistDeg', label: '初期のねじれ', min: -90, max: 90, step: 5, unit: '°' },
   { group: 'フック' },
   { path: 'hook.height', label: '高さ（板からてっぺんまで）', min: 3, max: 6, step: 0.1, unit: 'cm' },
   { path: 'hook.thickness', label: '太さ', min: 0.3, max: 0.7, step: 0.02, unit: 'cm' },
-  { path: 'hook.tipBallRadius', label: '先端の玉（0=なし）', min: 0, max: 0.6, step: 0.05, unit: 'cm' },
+  { path: 'hook.tipBallRadius', label: '先端の玉（0=なし）', min: 0, max: 0.4, step: 0.05, unit: 'cm' },
   { path: 'hook.yawDeg', label: '向き（0=手前 90=右）', min: 0, max: 359, step: 5, unit: '°' },
-  { path: 'hook.offsetX', label: '位置（左右）', min: -5, max: 5, step: 0.25, unit: 'cm' },
-  { path: 'hook.offsetZ', label: '位置（手前奥）', min: -4, max: 4, step: 0.25, unit: 'cm' },
-  { path: 'hook.friction', label: 'すべりにくさ', min: 0, max: 1.2, step: 0.05, unit: '' },
+  { path: 'hook.offsetX', label: '位置（左右）', min: -3, max: 3, step: 0.25, unit: 'cm' },
+  { path: 'hook.offsetZ', label: '位置（手前奥）', min: -3, max: 3, step: 0.25, unit: 'cm' },
+  { path: 'hook.friction', label: 'すべりにくさ', min: 0, max: 0.8, step: 0.05, unit: '' },
   { group: '板・台' },
   { path: 'board.width', label: '板の幅（左右）', min: 8, max: 16, step: 0.5, unit: 'cm' },
   { path: 'board.depth', label: '板の奥行き', min: 8, max: 16, step: 0.5, unit: 'cm' },
@@ -55,6 +55,9 @@ const SCHEMA = [
   { path: 'board.friction', label: '板の表面のすべりにくさ（小さいほどすべる）', min: 0, max: 1, step: 0.01 },
   { path: 'field.tableTiltDeg', label: '台の傾き（＋＝奥が低い）', min: -5, max: 5, step: 0.5, unit: '°' }
 ];
+
+// 移動範囲の左右の限界：リングの外側のふちが、筐体の左右の壁（中心から20cm）の1.5cm手前で止まる位置
+function xLimit(ringDiameter) { return 20 - 1.5 - ringDiameter / 2; }
 
 // basePreset：今のステージの設定（ステージが変わったら setBase で差し替える）
 // onStageReset：「ステージ1からやり直す」を押したとき
@@ -235,7 +238,10 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     const stop = h.bottomAtStop >= 0
       ? `板から ${h.bottomAtStop.toFixed(1)}cm 上で止まる（板に届かない）`
       : `板に着いて ${(-h.bottomAtStop).toFixed(1)}cm たるむ`;
-    info.innerHTML = `待機中のリング下端：フックのてっぺんより ${h.gapAtHome.toFixed(1)}cm ${h.gapAtHome >= 0 ? '上' : '下（フックに当たる）'}<br>下がりきったとき：${stop}`;
+    const lim = xLimit(p.ring.diameter);
+    const cut = p.field.xMax > lim || p.field.xMin < -lim
+      ? `<br>移動範囲の左右：リングの大きさに合わせて ±${lim.toFixed(1)}cm までになります` : '';
+    info.innerHTML = `待機中のリング下端：フックのてっぺんより ${h.gapAtHome.toFixed(1)}cm ${h.gapAtHome >= 0 ? '上' : '下（フックに当たる）'}<br>下がりきったとき：${stop}${cut}`;
   }
 
   function valueOf(path) {
@@ -248,6 +254,14 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     if (dev || isTraining()) for (const [path, v] of Object.entries(overrides)) setPath(p, path, v);
     // チェーンの長さを直接変えたら、ステージの「割合」より優先。そうでなければ、下降制限・リングを変えたときに割合から計算し直す
     if ('chain.length' in overrides) p.chain.lengthRatio = null;
+    // リングが筐体の左右の壁からはみ出さないように、移動範囲の左右をリングの大きさに合わせて縮める
+    const lim = xLimit(p.ring.diameter);
+    p.field.xMin = Math.max(p.field.xMin, -lim);
+    p.field.xMax = Math.min(p.field.xMax, lim);
+    // フックが板からはみ出さないように、取り付け位置を板の端から1.5cm内側までに縮める
+    const hx = Math.max(0, p.board.width / 2 - 1.5), hz = Math.max(0, p.board.depth / 2 - 1.5);
+    p.hook.offsetX = Math.max(-hx, Math.min(hx, p.hook.offsetX || 0));
+    p.hook.offsetZ = Math.max(-hz, Math.min(hz, p.hook.offsetZ || 0));
     return applyChainRatio(p);
   }
 

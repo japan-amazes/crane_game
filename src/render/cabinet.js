@@ -65,22 +65,6 @@ export function buildCabinet(THREE, { field, theme }) {
   piece('bottom', 0, FRAME.imgW, s.bottom[0], s.bottom[1]);
   piece('left', 0, s.side, s.top, s.bottom[0]);
   piece('right', FRAME.imgW - s.side, FRAME.imgW, s.top, s.bottom[0]);
-
-  // クール：窓のまわりの縁取り（銀色の金属の縁＋青く光るネオンのライン）。角は丸くする
-  //   形と位置は layoutFrame で決める（画面の大きさで変わるので、その都度作る）
-  //   筐体の外形（四隅の丸み・外側のネオン）は、画面側の index.html で付ける
-  if (th === 'cool') {
-    const chrome = new THREE.MeshBasicMaterial({ color: 0xb8c4d4, toneMapped: false, depthTest: false });
-    const neon = new THREE.MeshBasicMaterial({ color: 0x9fe8ff, toneMapped: false, depthTest: false });
-    const glow = new THREE.MeshBasicMaterial({ color: 0x2aa8ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending,
-      toneMapped: false, depthTest: false, depthWrite: false });
-    for (const [m, px, order] of [[glow, 44, 11], [chrome, 18, 12], [neon, 6, 13]]) {
-      const mesh = new THREE.Mesh(new THREE.BufferGeometry(), m);
-      mesh.renderOrder = order;
-      mesh.userData.trimRing = { px, THREE };
-      g.add(mesh);
-    }
-  }
   return g;
 }
 
@@ -109,28 +93,6 @@ export function layoutFrame(g, theme, { L, R, T, B }) {
       m.scale.set(sideW, midTop - midBot, 1);
       m.position.set(p === 'left' ? L + sideW / 2 : R - sideW / 2, (midTop + midBot) / 2, FRAME.z);
     }
-  }
-  // 窓のまわりの縁取り（クール）：角の丸い四角の輪。太さは画像のピクセルで決めて、画面の大きさに合わせる
-  const x0 = L + sideW, x1 = R - sideW, cx = (L + R) / 2, cy = (midTop + midBot) / 2;
-  const ww = x1 - x0, hh = midTop - midBot, RAD = 60 * k;   // 角の丸み
-  for (const m of g.children) {
-    const t = m.userData.trimRing;
-    if (!t) continue;
-    const THREE = t.THREE, w = t.px * k;
-    const rrect = (path, hw, hh2, r) => {
-      r = Math.min(r, hw, hh2);
-      path.moveTo(-hw + r, -hh2);
-      path.lineTo(hw - r, -hh2); path.quadraticCurveTo(hw, -hh2, hw, -hh2 + r);
-      path.lineTo(hw, hh2 - r); path.quadraticCurveTo(hw, hh2, hw - r, hh2);
-      path.lineTo(-hw + r, hh2); path.quadraticCurveTo(-hw, hh2, -hw, hh2 - r);
-      path.lineTo(-hw, -hh2 + r); path.quadraticCurveTo(-hw, -hh2, -hw + r, -hh2);
-      return path;
-    };
-    const shape = rrect(new THREE.Shape(), ww / 2 + w / 2, hh / 2 + w / 2, RAD + w / 2);
-    shape.holes.push(rrect(new THREE.Path(), ww / 2 - w / 2, hh / 2 - w / 2, Math.max(0.01, RAD - w / 2)));
-    m.geometry.dispose();
-    m.geometry = new THREE.ShapeGeometry(shape, 12);
-    m.position.set(cx, cy, FRAME.z + 0.01);
   }
 }
 

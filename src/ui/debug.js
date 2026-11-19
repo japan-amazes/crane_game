@@ -25,8 +25,8 @@ const SCHEMA = [
   { path: 'arm.holdTime', label: '下での待ち時間', min: 0.5, max: 2, step: 0.1, unit: '秒' },
   { path: 'arm.ascendSpeed', label: '引き上げの速さ', min: 2, max: 15, step: 0.5, unit: 'cm/s' },
   { group: 'チェーン' },
-  { path: 'chain.length', label: 'チェーンの長さ', min: 8, max: 30, step: 0.1, unit: 'cm' },
-  { path: 'chain.pitch', label: 'コマの長さ（ピッチ）', min: 0.5, max: 1.0, step: 0.05, unit: 'cm' },
+  { path: 'chain.lengthRatio', label: 'チェーンの長さ（0＝最短：リングが板に着く〜1＝最長：リングが板に寝る）', min: 0, max: 1, step: 0.05, unit: '' },
+  { path: 'chain.pitch', label: 'コマの長さ（ピッチ）', min: 0.5, max: 0.8, step: 0.05, unit: 'cm' },
   { path: 'chain.linearDamping', label: '揺れの残りにくさ', min: 0, max: 0.5, step: 0.05, unit: '' },
   { path: 'chain.twistStiffness', label: 'ねじれの戻る強さ', min: 100, max: 600, step: 20, unit: '' },
   { path: 'chain.twistDamping', label: 'ねじれの止まりやすさ', min: 0, max: 60, step: 2, unit: '' },
@@ -245,6 +245,10 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     for (const [path, { input, item }] of Object.entries(inputs)) {
       setPath(p, path, item.options ? input.value : Number(input.value));
     }
+    applyChainRatio(p);
+    // チェーンの長さの横に、実際の長さ（cm）
+    const cl = inputs['chain.lengthRatio'];
+    if (cl) cl.input.closest('.dbg-row').querySelector('.dbg-value').textContent = ` ${cl.input.value}（${p.chain.length.toFixed(1)} cm）`;
     const fit = fitArmHeight(p);
     p.field.armHeight = fit.armHeight;   // 実際に使うアームの高さで目安を出す
     const h = heightInfo(p);
@@ -269,7 +273,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     // 完成版では、特訓モードのときだけ変えた設定を使う
     if (dev || isTraining()) for (const [path, v] of Object.entries(overrides)) setPath(p, path, v);
     // チェーンの長さを直接変えたら、ステージの「割合」より優先。そうでなければ、下降制限・リングを変えたときに割合から計算し直す
-    if ('chain.length' in overrides) p.chain.lengthRatio = null;
+    if (p.chain.lengthRatio == null) p.chain.lengthRatio = 1;   // 割合がないとき（念のため）は最長
     // 先端の玉：ありなら標準の大きさ（フックの棒の太さの1.6倍の直径）
     p.hook.tipBallRadius = p.hook.tipBall === '1' ? p.hook.thickness * 0.8 : 0;
     delete p.hook.tipBall;

@@ -79,7 +79,7 @@ function differs(item, v, def) {
 }
 
 // basePreset：今のステージの設定（ステージが変わったら setBase で差し替える）
-// onStageReset：（使っていない。以前の「ステージ1からやり直す」ボタン用）
+// onStageReset：「最初の状態に戻す（テスト用）」を押したとき（開発中だけ）
 // opts.dev：開発中（テスト用の項目を出す・特訓モードでなくても設定を変えて遊べる）
 // opts.isTraining() / opts.setTraining(on)：特訓モードの状態（ゲーム側で持つ）
 export function createDebugPanel(container, basePreset, onApply, heightInfo, onStageReset, opts = {}) {
@@ -154,6 +154,17 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
       try { localStorage.setItem('crane.debug.unlimited', unlimited ? '1' : '0'); } catch { /* 保存できない環境 */ }
     });
     container.appendChild(unlRow);
+
+    // 最初の状態に戻す（テスト用）：アプリを初めて開いたときの状態にして、トップ画面からやり直す
+    if (onStageReset && dev) {
+      const resetAll = el('button', 'dbg-reset-all');
+      resetAll.textContent = '最初の状態に戻す（テスト用）';
+      resetAll.addEventListener('click', () => {
+        if (!window.confirm('クレジット・ステージ・景品・ポイント・アイテムなどをすべて最初の状態に戻します。よろしいですか？')) return;
+        onStageReset();
+      });
+      container.appendChild(resetAll);
+    }
 
     for (const item of SCHEMA) {
       if (item.group) {

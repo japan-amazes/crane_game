@@ -261,7 +261,16 @@ async function boot() {
   // 特訓モード：好きな設定で遊ぶ。クレジットを使わず、取った景品はマイボックスに入らない（ステージも進まない）
   let training = false;
   const debug = debugMod.createDebugPanel(document.getElementById('debug'), stagePreset(basePreset, stages, progress.stage), () => restart(true), heightInfo,
-    () => { progress.resetAll(); goStage(0); },
+    // 最初の状態に戻す（テスト用）：進み具合・特訓の「NEW」を消し、クレジット無制限をオフにして読み込み直す
+    //   テーマ・音のオンオフ・特訓の設定は残す
+    () => {
+      try {
+        localStorage.removeItem('crane.progress.v1');
+        localStorage.removeItem('crane.trainingSeen.v1');
+        localStorage.setItem('crane.debug.unlimited', '0');
+      } catch { /* 保存できない環境 */ }
+      location.reload();
+    },
     { dev: DEV_MODE, stageName: () => `STAGE ${progress.stage + 1}`, isTraining: () => training, setTraining: on => { training = on; if (round) { setStatus(); showStageLabel(); } } });
   // 「特訓」ボタン：全コンプリートで開放（開発中は常に表示）
   const btnDebug = document.getElementById('btnDebug');

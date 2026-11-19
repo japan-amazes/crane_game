@@ -17,7 +17,7 @@ export const ITEMS = [
   { id: 'catPick', name: 'カテゴリー指定券', icon: '🗂', price: 20, when: 'ready',
     desc: '今の景品を、選んだカテゴリーの景品に変えます（★の数は今のステージのまま）' },
   { id: 'newPick', name: '未所持確定券', icon: '🆕', price: 30, when: 'ready',
-    desc: '今の景品を、まだ持っていない景品に変えます（★の数は今のステージのまま）' },
+    desc: '今の景品を、まだ持っていない景品に変えます（星レベルが同一のステージで使用可能）' },
   { id: 'regenMax', name: '回復上限アップ', icon: '🔋', price: 50, when: 'any', boost: true,
     desc: '24時間、時間で回復するクレジットの上限が10→15になります' },
   { id: 'regenFast', name: '回復の速さアップ', icon: '⚡', price: 50, when: 'any', boost: true,

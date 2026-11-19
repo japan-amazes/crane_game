@@ -681,6 +681,9 @@ async function boot() {
       <div class="res-btns"><button id="btnAgain" class="big">${btn}</button>${w || training ? '' : '<button id="btnSkip">別のステージへ</button>'}</div>`;
     resultEl.hidden = false;
     if (w) resultEl.querySelector('.res-pic').appendChild(screens.prizeCanvas(w.item, 56));
+    document.getElementById('btnAgain').addEventListener('click', again);
+    const skip = document.getElementById('btnSkip');
+    if (skip) skip.addEventListener('click', () => { progress.skipStage(); goStage(progress.stage); });
     if (w && w.completedCat) setTimeout(() => showComplete(w), 1300);   // 獲得の音のあとにお祝い
   }
 
@@ -704,9 +707,6 @@ async function boot() {
       kind: 'cat', theme, label: w.completedCat.name, title: 'COMPLETE', sub: `${w.completedCat.name} コンプリート！`,
       rewards: [pack], note: `全コンプリートまで あと${prizeMod.CATEGORIES.length - done}カテゴリー`
     });
-    document.getElementById('btnAgain').addEventListener('click', again);
-    const skip = document.getElementById('btnSkip');
-    if (skip) skip.addEventListener('click', () => { progress.skipStage(); goStage(progress.stage); });
   }
 
   // ---- ループ（物理は固定ステップ）----

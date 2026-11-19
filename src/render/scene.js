@@ -332,29 +332,6 @@ export function createScene(THREE, canvas) {
       });
     }
     tracked = [];
-    for (const c of contacts) { scene.remove(c.mesh); c.mesh.geometry.dispose(); c.mesh.material.dispose(); }
-    contacts = [];
-  }
-
-  // 接地の影：板・景品の箱の真下の床に、ふちのぼけた濃い影を置く（床から離れるほど薄く・広く）
-  //   太陽の影だけだと部品が床から浮いて見えるので、それを補う
-  const contactTex = (() => {
-    const c = document.createElement('canvas'); c.width = c.height = 128;
-    const g = c.getContext('2d');
-    const gr = g.createRadialGradient(64, 64, 8, 64, 64, 64);
-    gr.addColorStop(0, 'rgba(0,0,0,0.75)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
-    const t = new THREE.CanvasTexture(c); t.userData.keep = true;
-    return t;
-  })();
-  let contacts = [];
-  function addContact(group, w, d) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.6, d * 1.6),
-      new THREE.MeshBasicMaterial({ map: contactTex, transparent: true, depthWrite: false, opacity: 0.8 }));
-    m.rotation.x = -Math.PI / 2;
-    m.renderOrder = 1;
-    scene.add(m);
-    contacts.push({ mesh: m, group });
   }
 
   function setRound(r) {
@@ -365,8 +342,6 @@ export function createScene(THREE, canvas) {
       const group = new THREE.Group();
       for (const p of v.parts) group.add(buildPart(p));
       scene.add(group);
-      const flat = v.parts.find(p => p.type === 'box' && (p.finish === 'gloss' || p.prizeBox));
-      if (flat) addContact(group, flat.size[0], flat.size[2]);
       const t = v.body.translation(), q = v.body.rotation();
       tracked.push({
         body: v.body, group,
@@ -486,15 +461,6 @@ export function createScene(THREE, canvas) {
       t.group.position.lerpVectors(t.prevP, tmpP, alpha);
       t.group.quaternion.slerpQuaternions(t.prevQ, tmpQ, alpha);
       if (round && t.body === round.arm.body) armGroup = t.group;
-    }
-    // 接地の影を部品の真下へ（高さに応じて薄く・広く）
-    for (const c of contacts) {
-      const p = c.group.position, h = Math.max(0, p.y);
-      c.mesh.position.set(p.x, 0.02, p.z);
-      c.mesh.visible = p.y > -1;   // 取り出し口に落ちたら消す
-      c.mesh.material.opacity = 1 / (1 + h * 0.35);
-      const s = 1 + h * 0.06;
-      c.mesh.scale.set(s, s, 1);
     }
     if (round) {
       guide.visible = showGuide;

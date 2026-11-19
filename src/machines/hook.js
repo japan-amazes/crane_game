@@ -26,10 +26,37 @@ export function createHookMachine(RAPIER, world, preset) {
   const mat = preset.materials[b.material] || preset.materials.plastic;
 
   // ---- 板（台の上に置く）----
-  const boardY = b.height / 2;
+  // 板の傾き（tiltX：＋＝右が低い / tiltZ：＋＝奥が低い）。傾けるときは、板の下に傾いた台座を置いて、その上に乗せる
+  const tx = (b.tiltX || 0) * Math.PI / 180, tz = (b.tiltZ || 0) * Math.PI / 180;
+  const tilted = Math.abs(tx) > 1e-4 || Math.abs(tz) > 1e-4;
+  const qTilt = mulQuat(quatAxisAngle(0, 0, 1, -tx), quatAxisAngle(1, 0, 0, -tz));
+  const up = rotateVec(qTilt, { x: 0, y: 1, z: 0 });
+  const PED_T = 0.6;   // 台座の厚み
+  let pedY = 0, pedestal = null;
+  if (tilted) {
+    // 台座のいちばん低い角が床（y=0）に着く高さ
+    let minY = Infinity;
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+      minY = Math.min(minY, rotateVec(qTilt, { x: sx * b.width / 2, y: sy * PED_T / 2, z: sz * b.depth / 2 }).y);
+    }
+    pedY = -minY;
+    pedestal = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(b.posX || 0, pedY, 0).setRotation(qTilt));
+    world.createCollider(
+      RAPIER.ColliderDesc.cuboid(b.width / 2, PED_T / 2, b.depth / 2)
+        .setFriction(1.0)
+        .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Max)   // 板が台座の上で滑らないように
+        .setCollisionGroups(groups(GROUP.TABLE, GROUP.BOARD | GROUP.RING | GROUP.CHAIN | GROUP.PRIZE)),
+      pedestal);
+  }
+  const lift = tilted ? PED_T / 2 + b.height / 2 : 0;
+  const boardPos = tilted
+    ? { x: (b.posX || 0) + up.x * lift, y: pedY + up.y * lift, z: up.z * lift }
+    : { x: b.posX || 0, y: b.height / 2, z: 0 };
+  const boardY = boardPos.y;
   const board = world.createRigidBody(
     RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(b.posX || 0, boardY, 0)
+      .setTranslation(boardPos.x, boardPos.y, boardPos.z)
+      .setRotation(tilted ? qTilt : { x: 0, y: 0, z: 0, w: 1 })
       .setLinearDamping(b.linearDamping ?? 0.05)
       .setAngularDamping(b.angularDamping ?? 0.2)
       .setCcdEnabled(true)
@@ -179,7 +206,9 @@ export function createHookMachine(RAPIER, world, preset) {
       }
       return { inside: crossing, distance: crossing ? 0 : Math.max(0, minDist - this.rodR) };
     },
-    visual: { body: board, parts }
+    visual: { body: board, parts },
+    // 傾けたときの台座（見た目）
+    extraVisuals: pedestal ? [{ body: pedestal, parts: [{ type: 'box', size: [b.width, PED_T, b.depth], pos: [0, 0, 0], color: 0x3a3f4c, castShadow: false }] }] : []
   };
 }
 
@@ -195,6 +224,16 @@ function quatFromY(d) {
   const q = { x: d.z, y: 0, z: -d.x, w: 1 + d.y };
   const n = Math.hypot(q.x, q.y, q.z, q.w);
   return { x: q.x / n, y: q.y / n, z: q.z / n, w: q.w / n };
+}
+
+// クォータニオンのかけ算（a のあとに b … ではなく、a・b の順に回す）
+function mulQuat(a, b) {
+  return {
+    w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+    x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+    y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+    z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w
+  };
 }
 
 function colorOf(material) {

@@ -20,8 +20,8 @@ const SCHEMA = [
   { path: 'field.xMax', label: '移動範囲：右端', min: 2, max: 16, step: 0.5, unit: 'cm' },
   { path: 'field.zFront', label: '移動範囲：手前（初期位置）', min: 2, max: 12, step: 0.5, unit: 'cm' },
   { path: 'field.zBack', label: '移動範囲：奥', min: -10, max: -2, step: 0.5, unit: 'cm' },
-  { path: 'field.armHeight', label: 'アームの高さ（板の上面から）', min: 35, max: 55, step: 0.1, unit: 'cm' },
-  { path: 'arm.dropLimit', label: '下降制限（止まる高さ・板の上面から）', min: 10, max: 30, step: 0.1, unit: 'cm' },
+  { path: 'field.armHeight', label: 'アームの高さ（標準の板の上面から）', min: 35, max: 55, step: 0.1, unit: 'cm' },
+  { path: 'arm.dropLimit', label: '下降制限（止まる高さ・標準の板の上面から）', min: 10, max: 30, step: 0.1, unit: 'cm' },
   { path: 'arm.holdTime', label: '下での待ち時間', min: 0.5, max: 2, step: 0.1, unit: '秒' },
   { path: 'arm.ascendSpeed', label: '引き上げの速さ', min: 2, max: 15, step: 0.5, unit: 'cm/s' },
   { group: 'チェーン' },
@@ -51,7 +51,8 @@ const SCHEMA = [
   { path: 'board.height', label: '板の厚み', min: 0.5, max: 2, step: 0.1, unit: 'cm' },
   { path: 'board.material', label: '板の素材', options: { plastic: 'プラスチック', metal: '金属', wood: '木' } },
   { path: 'board.friction', label: '板の表面のすべりにくさ（小さいほどすべる）', min: 0, max: 1, step: 0.01 },
-  { path: 'field.tableTiltDeg', label: '台の傾き（＋＝奥が低い）', min: -5, max: 5, step: 0.5, unit: '°' }
+  { path: 'board.tiltX', label: '板の傾き（左右・＋＝右が低い）', min: -5, max: 5, step: 0.5, unit: '°' },
+  { path: 'board.tiltZ', label: '板の傾き（前後・＋＝奥が低い）', min: -5, max: 5, step: 0.5, unit: '°' }
 ];
 
 // 移動範囲の左右の限界：リングの外側のふちが、筐体の左右の壁（中心から20cm）の1.5cm手前で止まる位置
@@ -65,9 +66,16 @@ function fitArmHeight(p) {
   const n = Math.max(2, Math.round(p.chain.length / p.chain.pitch));
   const chain = (p.chain.length / n) * n;
   const hi = RING_TOP_MAX + chain + kSpan;                                   // リングの上のふちが上限になる高さ
-  const lo = p.hook.height + 1 + chain + kSpan + p.ring.diameter - p.ring.thickness / 2;   // リングの下のふちがフックの1cm上
+  const thick = (p.board.height ?? 0.8) - 0.8;   // 標準より厚いぶん、フックのてっぺんも高い
+  const lo = thick + p.hook.height + 1 + chain + kSpan + p.ring.diameter - p.ring.thickness / 2;   // リングの下のふちがフックの1cm上
   const a = Math.max(lo, Math.min(hi, p.field.armHeight));
   return { armHeight: Math.round(a * 10) / 10, changed: Math.abs(a - p.field.armHeight) > 0.05 };
+}
+
+// 値が初期設定と違うか（スライダーの目盛りに合わない初期値は、目盛りの半分以内なら同じとみなす）
+function differs(item, v, def) {
+  if (item.options) return String(v) !== String(def);
+  return Math.abs(Number(v) - Number(def ?? 0)) > item.step / 2 + 1e-9;   // 初期設定にない項目は0
 }
 
 // basePreset：今のステージの設定（ステージが変わったら setBase で差し替える）
@@ -94,18 +102,20 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     head.innerHTML = '<b>特訓</b><span class="dbg-sub">好きな設定で遊べます。特訓モードの間はクレジットを使いません。取った景品はマイボックスに入らず、ステージも進みません</span>';
     container.appendChild(head);
 
-    // 特訓モードの切り替え。オフにすると今のステージの通常の設定に戻る
-    const trRow = el('label', 'dbg-row dbg-check dbg-training');
-    trRow.innerHTML = `<input type="checkbox"${isTraining() ? ' checked' : ''}> 特訓モード`;
-    trRow.querySelector('input').addEventListener('change', e => {
-      if (e.target.checked) { setTraining(true); return; }
-      overrides = {};
-      save(overrides);
-      setTraining(false);
-      onApply();
-      build();   // 開いたまま、通常の設定の値に表示しなおす
-    });
-    container.appendChild(trRow);
+    // 特訓モード中だけ「通常のゲームに戻る」：変えた設定を消して、特訓に入る前のステージの続きから
+    {
+      const ret = el('button', 'big dbg-return');
+      ret.hidden = !isTraining();   // 特訓モードになったら表示（liveApply）
+      ret.textContent = `通常のゲームに戻る（${opts.stageName ? opts.stageName() : ''}の続きから）`;
+      ret.addEventListener('click', () => {
+        overrides = {};
+        save(overrides);
+        setTraining(false);
+        toggle(false);
+        onApply();
+      });
+      container.appendChild(ret);
+    }
 
     // 高さの目安（チェーン・下降制限などを動かすとその場で再計算）
     info = el('div', 'dbg-info');
@@ -157,12 +167,12 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
         input.type = 'range';
         input.min = item.min; input.max = item.max; input.step = item.step;
       }
-      const cur = valueOf(item.path);
+      const cur = valueOf(item.path) ?? 0;   // 初期設定にない項目（板の傾きなど）は0
       input.value = cur;
-      const def = getPath(basePreset, item.path);
+      const def = getPath(basePreset, item.path) ?? 0;
       const show = () => {
         value.textContent = item.options ? '' : ` ${input.value}${item.unit ? ' ' + item.unit : ''}`;
-        const changed = String(input.value) !== String(def);
+        const changed = differs(item, input.value, def);
         row.classList.toggle('changed', changed);
         back.hidden = !changed;
       };
@@ -194,7 +204,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     reset.textContent = '初期値に戻す';
     reset.addEventListener('click', () => {
       for (const [path, { input }] of Object.entries(inputs)) {
-        input.value = getPath(basePreset, path);
+        input.value = getPath(basePreset, path) ?? 0;
         input.dispatchEvent(new Event('input'));
       }
       liveApply();
@@ -222,13 +232,13 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
       overrides = {};
       for (const [path, { input, item }] of Object.entries(inputs)) {
         const v = item.options ? input.value : Number(input.value);
-        if (String(v) !== String(getPath(basePreset, path))) overrides[path] = v;
+        if (differs(item, v, getPath(basePreset, path))) overrides[path] = v;
       }
       save(overrides);
       if (Object.keys(overrides).length && !isTraining()) {
         setTraining(true);
-        const tr = container.querySelector('.dbg-training input');
-        if (tr) tr.checked = true;
+        const ret = container.querySelector('.dbg-return');
+        if (ret) ret.hidden = false;
       }
       onApply();
     }, 300);
@@ -312,6 +322,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
   // ステージが変わったとき：表示する設定を差し替え、試しの変更は消す
   function setBase(p) {
     basePreset = p;
+    if (isTraining()) return;   // 特訓モード中は、ステージが変わっても変えた設定を残す
     overrides = {};
     save(overrides);
     build();

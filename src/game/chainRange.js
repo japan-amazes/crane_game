@@ -7,8 +7,10 @@
 export function chainRange(p) {
   const kSpan = p.connector.diameter - p.connector.thickness;   // つなぎのリングの長さ
   const th = p.ring.thickness;
-  const min = p.arm.dropLimit - kSpan - p.ring.diameter + th / 2;
-  const max = p.arm.dropLimit - kSpan - th / 2;
+  // 下降制限は標準の板（厚み0.8cm）の上面から。板が厚いぶん、実際の板の上面までは近くなる
+  const drop = p.arm.dropLimit - ((p.board && p.board.height != null ? p.board.height : 0.8) - 0.8);
+  const min = drop - kSpan - p.ring.diameter + th / 2;
+  const max = drop - kSpan - th / 2;
   return { min, max };
 }
 

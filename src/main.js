@@ -45,8 +45,9 @@ export function buildRound(RAPIER, preset) {
 
   // 高さは実機と同じ考え方：アームの高さ（固定）＋下降制限（止まる高さ）で決まり、
   // チェーンの長さでリングとフックの距離・着地したときのたるみが変わる
-  const homeY = machine.boardTop + preset.field.armHeight;
-  const bottomY = machine.boardTop + preset.arm.dropLimit;
+  //   高さは「標準の板（厚み0.8cm）の上面」から測る。板の厚みや傾きを変えても、アームとリングの高さは変わらない
+  const homeY = REF_BOARD_TOP + preset.field.armHeight;
+  const bottomY = REF_BOARD_TOP + preset.arm.dropLimit;
 
   const arm = new Arm(RAPIER, world, preset, homeY, bottomY);
   const chain = createChain(preset, arm.pos);
@@ -60,7 +61,7 @@ export function buildRound(RAPIER, preset) {
     hookRecord: null, // 引き上げ直前のフックとの位置関係
     result: null,     // 'win' | 'lose'
     maxLift: 0,
-    visuals: [table.visual, machine.visual, ...shelf.visuals, arm.visual, ...chain.visuals, ring.visual],
+    visuals: [table.visual, ...machine.extraVisuals, machine.visual, ...shelf.visuals, arm.visual, ...chain.visuals, ring.visual],
     step() {
       arm.update(STEP);
       chainDyn.step(STEP);
@@ -183,15 +184,19 @@ function seededRandom(seed) {
   };
 }
 
+// 高さの基準：標準の板の厚み（板の上面の高さ）
+export const REF_BOARD_TOP = 0.8;
+
 // 高さの目安（調整パネルに表示）：チェーン・リングの寸法と、アームの高さ・下降制限から計算
 export function heightInfo(preset) {
   const c = preset.chain, g = preset.ring, k = preset.connector, h = preset.hook;
   const n = Math.max(2, Math.round(c.length / c.pitch));
   const chainLen = (c.length / n) * n;
   const hang = chainLen + (k.diameter - k.thickness) + g.diameter - g.thickness / 2; // アーム〜リング下端
+  const thick = (preset.board.height ?? REF_BOARD_TOP) - REF_BOARD_TOP;   // 標準より厚いぶん、板の上面が近くなる
   return {
-    gapAtHome: preset.field.armHeight - hang - h.height,   // 待機中：リング下端 − フック頂点
-    bottomAtStop: preset.arm.dropLimit - hang              // 下がりきったとき：リング下端の板からの高さ（負＝たるみ）
+    gapAtHome: preset.field.armHeight - thick - hang - h.height,   // 待機中：リング下端 − フック頂点
+    bottomAtStop: preset.arm.dropLimit - thick - hang              // 下がりきったとき：リング下端の板からの高さ（負＝たるみ）
   };
 }
 
@@ -241,7 +246,7 @@ async function boot() {
   let training = false;
   const debug = debugMod.createDebugPanel(document.getElementById('debug'), stagePreset(basePreset, stages, progress.stage), () => restart(true), heightInfo,
     () => { progress.resetAll(); goStage(0); },
-    { dev: DEV_MODE, isTraining: () => training, setTraining: on => { training = on; if (round) { setStatus(); showStageLabel(); } } });
+    { dev: DEV_MODE, stageName: () => `STAGE ${progress.stage + 1}`, isTraining: () => training, setTraining: on => { training = on; if (round) { setStatus(); showStageLabel(); } } });
   // 「特訓」ボタン：全コンプリートで開放（開発中は常に表示）
   const btnDebug = document.getElementById('btnDebug');
   // 開放されてまだ押していないときは、光らせて「NEW」を付ける

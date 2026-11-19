@@ -145,7 +145,7 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
   }
 
   // ---- カードパックを開ける ----
-  // パックをタップ → 裏向きのカードが3枚 → 1枚ずつタップしてめくる
+  // パックをタップ → 裏向きのカードが3枚 → 左から1枚ずつ自動でめくれる
   function showPackOpen(cards) {
     open(`
       <div class="m-head"><b>カードパック</b></div>
@@ -161,16 +161,18 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
       <button class="big pk-ok" data-ok hidden>OK</button>`);
     const pack = root.querySelector('[data-pack]'), list = root.querySelector('.pk-cards');
     const msg = root.querySelector('.pk-msg'), ok = root.querySelector('[data-ok]');
-    let flipped = 0;
+    const FLIP_GAP = 600;   // めくれる間隔（ミリ秒）
     pack.addEventListener('click', () => {
+      if (pack.classList.contains('open')) return;
       pack.classList.add('open');
-      setTimeout(() => { pack.hidden = true; list.hidden = false; msg.textContent = 'カードをタップしてめくってください'; }, 350);
+      setTimeout(() => {
+        pack.hidden = true; list.hidden = false; msg.textContent = '';
+        root.querySelectorAll('[data-card]').forEach((b, i) => setTimeout(() => {
+          b.classList.add('flip');
+          if (i === cards.length - 1) setTimeout(() => { msg.textContent = 'アイテムに入りました'; ok.hidden = false; }, 450);
+        }, FLIP_GAP * (i + 1)));
+      }, 350);
     });
-    root.querySelectorAll('[data-card]').forEach(b => b.addEventListener('click', () => {
-      if (b.classList.contains('flip')) return;
-      b.classList.add('flip');
-      if (++flipped === cards.length) { msg.textContent = 'アイテムに入りました'; ok.hidden = false; }
-    }));
     ok.addEventListener('click', () => { boxMode = 'item'; showItems(); });
   }
 

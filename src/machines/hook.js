@@ -63,8 +63,14 @@ export function createHookMachine(RAPIER, world, preset) {
   const pts = line.map(toBoard);
 
   const parts = [
-    { type: 'box', size: [b.width, b.height, b.depth], pos: [0, 0, 0], color: colorOf(b.material) }
+    { type: 'box', size: [b.width, b.height, b.depth], pos: [0, 0, 0], color: colorOf(b.material), round: 0.3, finish: 'gloss' }
   ];
+  // フックの根元の取り付け金具（見た目だけ）：座金と六角ナット
+  {
+    const p0 = pts[0];
+    parts.push({ type: 'cylinder', radius: rodR * 2.8, height: 0.12, pos: [p0.x, base.y + 0.06, p0.z], finish: 'brass', color: BRASS });
+    parts.push({ type: 'cylinder', radius: rodR * 2.0, height: 0.32, sides: 6, pos: [p0.x, base.y + 0.12 + 0.16, p0.z], finish: 'brass', color: BRASS });
+  }
   const hookGroups = groups(GROUP.BOARD, GROUP.TABLE | GROUP.RING | GROUP.CHAIN);
 
   for (let i = 0; i < pts.length - 1; i++) {
@@ -83,7 +89,7 @@ export function createHookMachine(RAPIER, world, preset) {
         .setCollisionGroups(hookGroups),
       board
     );
-    parts.push({ type: 'capsule', radius: rodR, halfHeight: len / 2, pos: [mid.x, mid.y, mid.z], quat: q, color: BRASS });
+    parts.push({ type: 'capsule', radius: rodR, halfHeight: len / 2, pos: [mid.x, mid.y, mid.z], quat: q, color: BRASS, finish: 'brass' });
   }
 
   // 玉付き（先端に球）
@@ -97,7 +103,7 @@ export function createHookMachine(RAPIER, world, preset) {
         .setCollisionGroups(hookGroups),
       board
     );
-    parts.push({ type: 'ball', radius: h.tipBallRadius, pos: [tip.x, tip.y, tip.z], color: BRASS });
+    parts.push({ type: 'ball', radius: h.tipBallRadius, pos: [tip.x, tip.y, tip.z], color: BRASS, finish: 'brass' });
   }
 
   // 記録用：フック中心線を細かく分割した点（板ローカル）

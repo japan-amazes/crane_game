@@ -129,15 +129,25 @@ export function createPrizeShelf(RAPIER, world, preset, machine, side) {
   // ---- 見た目 ----
   const netVisual = {
     body: net,
-    parts: [{ type: 'box', size: [S.netW, S.netT, S.netD], pos: [0, -S.netT / 2, -S.netD / 2], color: 0x9aa3b0, net: true, castShadow: false }]
+    parts: [
+      { type: 'box', size: [S.netW, S.netT, S.netD], pos: [0, -S.netT / 2, -S.netD / 2], color: 0x9aa3b0, net: true, castShadow: false },
+      // 網の周りの銀色の枠（見た目だけ）
+      ...[[[-1, 0], [1, 0]], [[-1, -1], [1, -1]], [[-1, 0], [-1, -1]], [[1, 0], [1, -1]]].map(([a, b]) => ({
+        type: 'rod', radius: 0.17, finish: 'chrome', color: 0xe8edf3, castShadow: false,
+        from: [a[0] * S.netW / 2, -S.netT / 2, a[1] * S.netD], to: [b[0] * S.netW / 2, -S.netT / 2, b[1] * S.netD]
+      }))
+    ]
   };
   // 網の下の支え（固定の見た目だけ）
   const legsBody = { translation: () => ({ x: hx, y: 0, z: S.netZ }), rotation: () => ({ x: 0, y: 0, z: 0, w: 1 }) };
   const legs = { body: legsBody, parts: [] };
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    legs.parts.push({ type: 'box', size: [0.4, hy - S.netT, 0.4], pos: [sx * (S.netW / 2 - 0.4), (hy - S.netT) / 2, sz * (S.netD / 2 - 0.6)], color: 0x5a6070, castShadow: false });
+    // 脚：銀色の丸い棒＋床に当たる丸い足
+    const lx = sx * (S.netW / 2 - 0.4), lz = sz * (S.netD / 2 - 0.6);
+    legs.parts.push({ type: 'rod', radius: 0.18, from: [lx, 0, lz], to: [lx, hy - S.netT, lz], finish: 'chrome', color: 0xe8edf3, castShadow: false });
+    legs.parts.push({ type: 'cylinder', radius: 0.42, height: 0.2, pos: [lx, 0.1, lz], finish: 'chrome', color: 0xe8edf3, castShadow: false });
   }
-  const boxVisual = { body: box, parts: [{ type: 'box', size: [bw, bh, bd], pos: [0, 0, 0], color: 0xffffff, prizeBox: true }] };
+  const boxVisual = { body: box, parts: [{ type: 'box', size: [bw, bh, bd], pos: [0, 0, 0], color: 0xffffff, prizeBox: true, round: 0.22 }] };
   const chainVisuals = links.map(l => ({
     body: l.body,
     parts: [{ type: 'chainlink', length: S.linkLen, width: S.linkW, wire: S.linkWire, pos: [0, 0, 0], color: 0xf2f2f2, plastic: true, castShadow: false }]

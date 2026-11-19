@@ -71,9 +71,17 @@ export function createTable(RAPIER, world, preset, hole = null) {
     pit(w / 2 + 1, 7, 0.5, cx, -6, hole.z0 - 0.5);
     pit(w / 2 + 1, 7, 0.5, cx, -6, hole.z1 + 0.5);
     parts.push({ type: 'box', size: [w, 0.2, d], pos: [cx, -11.9, cz], color: 0x07080b, castShadow: false });
+    // 穴の中の壁：上は少し明るく、下に行くほど暗く（2段で重ねる）
     for (const [px, pz, sx, sz] of [[hole.x0, cz, 0.2, d], [hole.x1, cz, 0.2, d], [cx, hole.z0, w, 0.2], [cx, hole.z1, w, 0.2]]) {
-      parts.push({ type: 'box', size: [sx, 12, sz], pos: [px, -6, pz], color: 0x0d0f14, castShadow: false });
+      parts.push({ type: 'box', size: [sx, 3, sz], pos: [px, -1.5, pz], color: 0x2a2e3a, castShadow: false });
+      parts.push({ type: 'box', size: [sx, 9, sz], pos: [px, -7.5, pz], color: 0x0b0d12, castShadow: false });
     }
+    // 穴のふち：銀色の枠（見た目だけ）
+    const y = 0.12, rim = { type: 'rod', radius: 0.16, finish: 'chrome', color: 0xe8edf3, castShadow: false };
+    parts.push({ ...rim, from: [hole.x0, y, hole.z0], to: [hole.x1, y, hole.z0] });
+    parts.push({ ...rim, from: [hole.x0, y, hole.z1], to: [hole.x1, y, hole.z1] });
+    parts.push({ ...rim, from: [hole.x0, y, hole.z0], to: [hole.x0, y, hole.z1] });
+    parts.push({ ...rim, from: [hole.x1, y, hole.z0], to: [hole.x1, y, hole.z1] });
   }
   const visual = { body, parts };
   return { body, visual };

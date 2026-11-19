@@ -10,6 +10,7 @@ export function createScene(THREE, canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // 影のふちを柔らかく
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x12151c);
@@ -17,13 +18,38 @@ export function createScene(THREE, canvas) {
   const camera = new THREE.PerspectiveCamera(35, 1, 0.5, 500);
 
   // 照明
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 0.9));
+  // 全体の明るさは少し控えめにして、影がはっきり出るようにする（色はテーマで変える）
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 0.7);
+  scene.add(hemi);
+  // 筐体の照明の色：左右の壁のネオンから部品に色が回り込む（テーマで色を変える）
+  const sideLights = [-1, 1].map(sx => {
+    const l = new THREE.PointLight(0xff6fb0, 60, 60, 1.6);
+    l.position.set(sx * 17, 14, 2);
+    scene.add(l);
+    return l;
+  });
+  // 手前上からの柔らかい光：部品の正面を明るくして、つやを見せる
+  const fill = new THREE.DirectionalLight(0xffffff, 0.5);
+  fill.position.set(0, 20, 40);
+  scene.add(fill);
+  const THEME_LIGHT = {
+    cute: { sky: 0xfff0f8, ground: 0x6a3a5a, side: 0xff6fb0 },
+    cool: { sky: 0xe6f2ff, ground: 0x1a2a44, side: 0x3aa8ff }
+  };
+  function applyThemeLight(th) {
+    const c = THEME_LIGHT[th];
+    hemi.color.set(c.sky); hemi.groundColor.set(c.ground);
+    for (const l of sideLights) l.color.set(c.side);
+  }
   const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-  sun.position.set(12, 40, 20);
+  sun.position.set(6, 40, 12);   // ほぼ真上から：部品のすぐ下に影が落ちる
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
-  sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -24; sun.shadow.camera.right = 24;
+  sun.shadow.camera.top = 24; sun.shadow.camera.bottom = -24;
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.02;
+  sun.shadow.radius = 3;
   scene.add(sun);
 
   // 真下ガイド：アームの真下に、周りをぼかした丸（影のような目印）を表示
@@ -139,8 +165,11 @@ export function createScene(THREE, canvas) {
 
   function buildPart(p) {
     let geo;
-    if (p.type === 'box') geo = new THREE.BoxGeometry(p.size[0], p.size[1], p.size[2]);
-    else if (p.type === 'capsule') geo = new THREE.CapsuleGeometry(p.radius, p.halfHeight * 2, 6, 12);
+    if (p.type === 'box') geo = p.round ? roundedBox(p.size[0], p.size[1], p.size[2], p.round)
+      : new THREE.BoxGeometry(p.size[0], p.size[1], p.size[2]);
+    else if (p.type === 'capsule') geo = new THREE.CapsuleGeometry(p.radius, p.halfHeight * 2, 8, 16);
+    else if (p.type === 'cylinder') geo = new THREE.CylinderGeometry(p.radius, p.radius, p.height, p.sides || 24);
+    else if (p.type === 'rod') geo = new THREE.CylinderGeometry(p.radius, p.radius, 1, 12);
     else if (p.type === 'ball') geo = new THREE.SphereGeometry(p.radius, 16, 12);
     else if (p.type === 'torus') geo = new THREE.TorusGeometry(p.radius, p.tube, 12, 40);
     else if (p.type === 'chainlink') geo = chainLinkGeometry(p.length, p.width, p.wire, 0);
@@ -150,6 +179,13 @@ export function createScene(THREE, canvas) {
     if (p.floor) {
       // 台の上面（床）：テーマ別の材質
       mat = cabinetMod.floorMaterial(THREE, theme, chromeEnv());
+    } else if (p.finish === 'brass') {
+      // 真ちゅう（フック）：金色の金属のつや＋筐体照明の写り込み
+      mat = new THREE.MeshStandardMaterial({ color: 0xe0b24a, metalness: 1, roughness: 0.22, envMap: chromeEnv(), envMapIntensity: 1.4 });
+    } else if (p.finish === 'gloss') {
+      // つやのあるプラスチック（板）：表面に薄いコーティングの光沢
+      mat = new THREE.MeshPhysicalMaterial({ color: p.color, roughness: 0.4, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.12,
+        envMap: chromeEnv(), envMapIntensity: 0.5 });
     } else if (p.finish === 'chrome') {
       // メッキ調（リング・チェーン・つなぎのリング）：強い光沢＋筐体照明の写り込み
       mat = new THREE.MeshStandardMaterial({ color: p.color, metalness: 1, roughness: 0.14, envMap: chromeEnv(), envMapIntensity: 1.2 });
@@ -161,9 +197,10 @@ export function createScene(THREE, canvas) {
       mat = new THREE.MeshStandardMaterial({ map: netTexture(), transparent: true, alphaTest: 0.3, metalness: 0.5, roughness: 0.5, side: THREE.DoubleSide });
     } else if (p.prizeBox && prizeBoxArt) {
       // 景品の箱：正面・背面に景品の絵、側面はカテゴリーの色
-      const face = new THREE.MeshStandardMaterial({ map: canvasTex(prizeBoxArt.front), roughness: 0.5 });
-      const side = new THREE.MeshStandardMaterial({ color: prizeBoxArt.side, roughness: 0.5 });
-      const top = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+      // 紙の箱：少しつやのある印刷面（角は丸めた形）
+      const face = new THREE.MeshStandardMaterial({ map: canvasTex(prizeBoxArt.front), roughness: 0.55, envMap: chromeEnv(), envMapIntensity: 0.25 });
+      const side = new THREE.MeshStandardMaterial({ color: prizeBoxArt.side, roughness: 0.55, envMap: chromeEnv(), envMapIntensity: 0.25 });
+      const top = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, envMap: chromeEnv(), envMapIntensity: 0.25 });
       mat = [side, side, top, side, face, face];   // +x, −x, +y, −y, +z（正面）, −z
     } else {
       mat = new THREE.MeshStandardMaterial({
@@ -174,12 +211,55 @@ export function createScene(THREE, canvas) {
     }
     const mesh = new THREE.Mesh(geo, mat);
     if (p.floor) mesh.userData.floor = true;
+    if (p.type === 'rod') {
+      // 2点を結ぶ棒（from → to）
+      const a = new THREE.Vector3(...p.from), b = new THREE.Vector3(...p.to);
+      mesh.scale.y = a.distanceTo(b);
+      mesh.position.copy(a).add(b).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      mesh.castShadow = p.castShadow !== false;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
     mesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
     if (p.quat) mesh.quaternion.set(p.quat.x, p.quat.y, p.quat.z, p.quat.w);
     if (p.rotY) mesh.rotation.y = p.rotY;
     mesh.castShadow = p.castShadow !== false; // リング・チェーン・アームは影を落とさない（真下の目印を影として使う）
     mesh.receiveShadow = true;
     return mesh;
+  }
+
+  // 角を丸めた箱（見た目だけ。当たり判定はふつうの箱のまま）
+  //   細かく分けた箱の頂点を、角から r の帯に寄せてから丸める。面ごとの材質（景品の箱の絵）はそのまま使える
+  function roundedBox(w, h, d, r) {
+    const m = 3, n = 2 + 2 * m;   // 丸める帯に3分割ずつ
+    const geo = new THREE.BoxGeometry(w, h, d, n, n, n);
+    const pos = geo.attributes.position, nor = geo.attributes.normal;
+    const half = [w / 2, h / 2, d / 2];
+    const band = 2 * m / n;
+    const v = [0, 0, 0];
+    for (let i = 0; i < pos.count; i++) {
+      v[0] = pos.getX(i); v[1] = pos.getY(i); v[2] = pos.getZ(i);
+      const inner = [0, 0, 0], off = [0, 0, 0];
+      for (let k = 0; k < 3; k++) {
+        const H = half[k], rr = Math.min(r, H * 0.9), g = v[k] / H;
+        let c;
+        if (g < -1 + band) c = -H + rr * (g + 1) / band;
+        else if (g > 1 - band) c = H - rr * (1 - g) / band;
+        else c = g / (1 - band) * (H - rr);
+        inner[k] = Math.max(-(H - rr), Math.min(H - rr, c));
+        off[k] = c - inner[k];
+        v[k] = c;
+      }
+      const len = Math.hypot(off[0], off[1], off[2]);
+      if (len > 1e-6) {
+        const rr = Math.min(r, Math.min(...half) * 0.9);
+        for (let k = 0; k < 3; k++) v[k] = inner[k] + off[k] / len * rr;
+        nor.setXYZ(i, off[0] / len, off[1] / len, off[2] / len);
+      }
+      pos.setXYZ(i, v[0], v[1], v[2]);
+    }
+    return geo;
   }
 
   // チェーンの輪：縦長の楕円（直線＋半円2つ）に沿った管。同じ寸法は1回だけ作って使い回す
@@ -241,6 +321,29 @@ export function createScene(THREE, canvas) {
       });
     }
     tracked = [];
+    for (const c of contacts) { scene.remove(c.mesh); c.mesh.geometry.dispose(); c.mesh.material.dispose(); }
+    contacts = [];
+  }
+
+  // 接地の影：板・景品の箱の真下の床に、ふちのぼけた濃い影を置く（床から離れるほど薄く・広く）
+  //   太陽の影だけだと部品が床から浮いて見えるので、それを補う
+  const contactTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 8, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(0,0,0,0.75)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c); t.userData.keep = true;
+    return t;
+  })();
+  let contacts = [];
+  function addContact(group, w, d) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.6, d * 1.6),
+      new THREE.MeshBasicMaterial({ map: contactTex, transparent: true, depthWrite: false, opacity: 0.8 }));
+    m.rotation.x = -Math.PI / 2;
+    m.renderOrder = 1;
+    scene.add(m);
+    contacts.push({ mesh: m, group });
   }
 
   function setRound(r) {
@@ -251,6 +354,8 @@ export function createScene(THREE, canvas) {
       const group = new THREE.Group();
       for (const p of v.parts) group.add(buildPart(p));
       scene.add(group);
+      const flat = v.parts.find(p => p.type === 'box' && (p.finish === 'gloss' || p.prizeBox));
+      if (flat) addContact(group, flat.size[0], flat.size[2]);
       const t = v.body.translation(), q = v.body.rotation();
       tracked.push({
         body: v.body, group,
@@ -368,6 +473,15 @@ export function createScene(THREE, canvas) {
       t.group.quaternion.slerpQuaternions(t.prevQ, tmpQ, alpha);
       if (round && t.body === round.arm.body) armGroup = t.group;
     }
+    // 接地の影を部品の真下へ（高さに応じて薄く・広く）
+    for (const c of contacts) {
+      const p = c.group.position, h = Math.max(0, p.y);
+      c.mesh.position.set(p.x, 0.02, p.z);
+      c.mesh.visible = p.y > -1;   // 取り出し口に落ちたら消す
+      c.mesh.material.opacity = 1 / (1 + h * 0.35);
+      const s = 1 + h * 0.06;
+      c.mesh.scale.set(s, s, 1);
+    }
     if (round) {
       guide.visible = showGuide;
       const a = armGroup ? armGroup.position : round.arm.pos;
@@ -378,6 +492,7 @@ export function createScene(THREE, canvas) {
 
   // 筐体の飾り（テーマ別。cabinet.js）。フィールドの奥行きかテーマが変わったときだけ作り直す
   let theme = 'cute';
+  applyThemeLight(theme);
   let cabinet = null, cabinetKey = '';
   function setCabinet(field) {
     const key = `${field ? field.zBack : -10}|${theme}`;
@@ -411,6 +526,7 @@ export function createScene(THREE, canvas) {
   // テーマを切り替える：背景・筐体・床
   function setTheme(t) {
     theme = t === 'cool' ? 'cool' : 'cute';
+    applyThemeLight(theme);
     scene.background = new THREE.Color(cabinetMod.backgroundColor(theme));
     guide.material.map = guideTex[theme];
     guide.material.color.set(theme === 'cool' ? 0xffffff : 0x000000);

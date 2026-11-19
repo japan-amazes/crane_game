@@ -100,7 +100,7 @@ export function layoutFrame(g, theme, { L, R, T, B }) {
 export function floorMaterial(THREE, theme) {
   const th = theme === 'cool' ? 'cool' : 'cute';
   const map = tex(THREE, `floor_${th}`, { repeat: [60 / FLOOR_TILE, 50 / FLOOR_TILE] });
-  return new THREE.MeshStandardMaterial({ map, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1 });
+  return new THREE.MeshStandardMaterial({ map, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.3, roughness: 0.35, metalness: 0.1 });
 }
 
 // 背景（筐体の外）の色

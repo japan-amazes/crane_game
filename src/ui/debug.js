@@ -102,14 +102,18 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     head.innerHTML = '<b>特訓</b><span class="dbg-sub">好きな設定で遊べます。特訓モードの間はクレジットを使いません。取った景品はマイボックスに入らず、ステージも進みません</span>';
     container.appendChild(head);
 
-    // 特訓モード中だけ「通常のゲームに戻る」：変えた設定を消して、特訓に入る前のステージの続きから
+    // 特訓モード中は「通常のゲームに戻る」、通常モードでは「保存した設定で特訓を始める」
+    //   特訓の設定は保存したまま（通常のゲームに戻っても、アプリを開き直しても消えない）
     {
-      const ret = el('button', 'big dbg-return');
-      ret.hidden = !isTraining();   // 特訓モードになったら表示（liveApply）
+      const start = el('button', 'big dbg-return dbg-start');
+      start.hidden = isTraining();
+      start.textContent = '保存した設定で特訓を始める';
+      start.addEventListener('click', () => { enterTraining(); onApply(); });
+      container.appendChild(start);
+      const ret = el('button', 'big dbg-return dbg-back-normal');
+      ret.hidden = !isTraining();
       ret.textContent = `通常のゲームに戻る（${opts.stageName ? opts.stageName() : ''}の続きから）`;
       ret.addEventListener('click', () => {
-        overrides = {};
-        save(overrides);
         setTraining(false);
         toggle(false);
         onApply();
@@ -237,11 +241,18 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
       save(overrides);
       if (Object.keys(overrides).length && !isTraining()) {
         setTraining(true);
-        const ret = container.querySelector('.dbg-return');
-        if (ret) ret.hidden = false;
+        enterTraining();
       }
       onApply();
     }, 300);
+  }
+
+  // 特訓モードに入る（上のボタンを「通常のゲームに戻る」に切り替える）
+  function enterTraining() {
+    if (!isTraining()) setTraining(true);
+    const st = container.querySelector('.dbg-start'), ret = container.querySelector('.dbg-back-normal');
+    if (st) st.hidden = true;
+    if (ret) ret.hidden = false;
   }
 
   // アームの高さと下降制限がぶつからないように：下降制限はアームの高さより 10cm 以上低く
@@ -289,7 +300,8 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     const p = JSON.parse(JSON.stringify(basePreset));
     p.hook.tipBall = p.hook.tipBallRadius > 0 ? '1' : '0';
     // 完成版では、特訓モードのときだけ変えた設定を使う
-    if (dev || isTraining()) for (const [path, v] of Object.entries(overrides)) setPath(p, path, v);
+    // 特訓の設定は、特訓モードのときだけ使う（通常モードではステージの設定のまま）
+    if (isTraining()) for (const [path, v] of Object.entries(overrides)) setPath(p, path, v);
     // チェーンの長さを直接変えたら、ステージの「割合」より優先。そうでなければ、下降制限・リングを変えたときに割合から計算し直す
     if (p.chain.lengthRatio == null) p.chain.lengthRatio = 1;   // 割合がないとき（念のため）は最長
     // 先端の玉：ありなら標準の大きさ（フックの棒の太さの1.6倍の直径）
@@ -321,10 +333,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
 
   // ステージが変わったとき：表示する設定を差し替え、試しの変更は消す
   function setBase(p) {
-    basePreset = p;
-    if (isTraining()) return;   // 特訓モード中は、ステージが変わっても変えた設定を残す
-    overrides = {};
-    save(overrides);
+    basePreset = p;   // 特訓の設定（変えた項目）は、ステージが変わっても残す
     build();
   }
 
@@ -356,7 +365,11 @@ function setPath(obj, path, v) {
 }
 
 function load() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
+  // 今の項目にあるものだけ使う（前の版で保存した、なくなった項目は捨てる）
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { /* 読めないときは空 */ }
+  const known = new Set(SCHEMA.filter(it => it.path).map(it => it.path));
+  return Object.fromEntries(Object.entries(o).filter(([k]) => known.has(k)));
 }
 
 function save(v) {

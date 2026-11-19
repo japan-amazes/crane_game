@@ -173,7 +173,8 @@ export class Arm {
       case PHASE.RETURN_Z:
         // 手前（zFront）へ。止まり際は減速して目標でぴったり止まる
         this.vel.z = this.approach(this.vel.z, this.stopSpeed(p.speedZ, f.zFront - this.pos.z), dt);
-        if (Math.abs(f.zFront - this.pos.z) < 0.01 && Math.abs(this.vel.z) < 0.05) {
+        // あと1回分の移動で届く距離に入ったら、ぴったり止める（目標の前後を行ったり来たりして止まらないのを防ぐ）
+        if (Math.abs(f.zFront - this.pos.z) <= Math.abs(this.vel.z) * dt + 0.01) {
           this.pos.z = f.zFront; this.vel.z = 0;
           this.setPhase(PHASE.RETURN_X);
         }
@@ -181,7 +182,7 @@ export class Arm {
       case PHASE.RETURN_X:
         // 横（xMin）へ
         this.vel.x = this.approach(this.vel.x, this.stopSpeed(p.speedX, this.startX - this.pos.x), dt);
-        if (Math.abs(this.startX - this.pos.x) < 0.01 && Math.abs(this.vel.x) < 0.05) {
+        if (Math.abs(this.startX - this.pos.x) <= Math.abs(this.vel.x) * dt + 0.01) {   // 同上
           this.pos.x = this.startX; this.vel.x = 0;
           this.setPhase(PHASE.READY);
         }

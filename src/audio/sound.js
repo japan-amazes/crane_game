@@ -39,6 +39,7 @@ export function createSound() {
   try { Object.assign(settings, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch { /* 保存できない環境 */ }
 
   let ctx = null, master = null, bgmGain = null, sfxGain = null;
+  let fxOut = null, fxVerb = null;   // カードパックの音用（左右の広がり・残響・音割れ防止つき）
   const waves = {};
   let noiseBuf = null;
   let song = null;          // { stepSec, totalSteps, swing, swingUnit, tracks: [{ wave, volume, events }] }
@@ -54,6 +55,14 @@ export function createSound() {
     master = ctx.createGain(); master.gain.value = 0.6; master.connect(ctx.destination);
     bgmGain = ctx.createGain(); bgmGain.gain.value = 0.45; bgmGain.connect(master);
     sfxGain = ctx.createGain(); sfxGain.gain.value = 0.8; sfxGain.connect(master);
+    // カードパックの音の出口：音割れを防ぐ圧縮 → 出口。残響（約1.4秒の響き）を少し混ぜる
+    const fxComp = ctx.createDynamicsCompressor(); fxComp.threshold.value = -14; fxComp.ratio.value = 4; fxComp.connect(ctx.destination);
+    const fxMaster = ctx.createGain(); fxMaster.gain.value = 0.68; fxMaster.connect(fxComp);
+    fxOut = ctx.createGain(); fxOut.gain.value = 0.8; fxOut.connect(fxMaster);
+    const irLen = Math.floor(ctx.sampleRate * 1.4), ir = ctx.createBuffer(2, irLen, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.6); }
+    const conv = ctx.createConvolver(); conv.buffer = ir; conv.connect(fxMaster);
+    fxVerb = ctx.createGain(); fxVerb.gain.value = 0.35; fxVerb.connect(conv);
     // パルス波（デューティ比 12.5% / 25%）：ファミコンの矩形波の音色
     for (const [name, duty] of [['pulse12', 0.125], ['pulse25', 0.25]]) {
       const N = 32, re = new Float32Array(N), im = new Float32Array(N);
@@ -153,6 +162,75 @@ export function createSound() {
     timer = null;
   }
 
+  // ---- カードパックの音の部品 ----
+  // fxTone：1音。unison＝左右に少しずらした2音で厚く、blip＝鳴り始めの約25msだけ1オクターブ上（ファミコン風の「ピロッ」）、
+  //         vib＝長い音に揺れ、decay＝だんだん小さく消える、att＝鳴り始めのふくらみ（秒）
+  function fxTone(wave, freq, t, dur, vol, o = {}) {
+    const pans = o.unison ? [-0.45, 0.45] : [o.pan || 0], cents = o.unison ? [-9, 9] : [0];
+    pans.forEach((pan, k) => {
+      const osc = ctx.createOscillator();
+      if (waves[wave]) osc.setPeriodicWave(waves[wave]); else osc.type = wave;
+      osc.detune.value = cents[k] + (o.detune || 0);
+      if (o.blip) { osc.frequency.setValueAtTime(freq * 2, t); osc.frequency.setValueAtTime(freq, t + 0.025); }
+      else osc.frequency.setValueAtTime(freq, t);
+      if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(o.slideTo, t + dur);
+      if (o.vib) {
+        const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 6;
+        lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(25, t + 0.35);
+        l.connect(lg); lg.connect(osc.detune); l.start(t); l.stop(t + dur + 0.05);
+      }
+      const g = ctx.createGain(), pv = vol / pans.length * (o.unison ? 1.4 : 1);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(pv, t + (o.att || 0.004));
+      if (o.decay) g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      else { g.gain.setValueAtTime(pv, t + dur * 0.7); g.gain.linearRampToValueAtTime(0, t + dur); }
+      const pn = ctx.createStereoPanner(); pn.pan.value = pan;
+      osc.connect(g); g.connect(pn); pn.connect(fxOut); pn.connect(fxVerb);
+      osc.start(t); osc.stop(t + dur + 0.05);
+    });
+  }
+  // fxNoise：ノイズ（フィルターを動かして「シャー」「シュッ」「バン」）。swell＝だんだん大きく
+  function fxNoise(t, dur, vol, f0, f1, type = 'bandpass', q = 1, o = {}) {
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const f = ctx.createBiquadFilter(); f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    if (o.swell) g.gain.exponentialRampToValueAtTime(vol, t + dur);
+    else { g.gain.linearRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0008, t + dur); }
+    const pn = ctx.createStereoPanner(); pn.pan.value = o.pan || 0;
+    src.connect(f); f.connect(g); g.connect(pn); pn.connect(fxOut); pn.connect(fxVerb);
+    src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
+  }
+  // ベル（キラーン）：基音に倍音でない高い音を重ねて金属っぽく
+  function fxBell(freq, t, vol, pan = 0, len = 0.6) {
+    fxTone('sine', freq, t, len, vol, { pan, decay: true });
+    fxTone('sine', freq * 2.76, t, len * 0.5, vol * 0.35, { pan, decay: true });
+    fxTone('sine', freq * 5.4, t, len * 0.25, vol * 0.15, { pan, decay: true });
+  }
+  // 低い「ドン」
+  function fxKick(t, vol) { fxTone('sine', 160, t, 0.35, vol, { slideTo: 38, decay: true }); }
+  // 光るように揺れる高い音（音量を速く揺らす）。音程を f0→f1 に上げながらだんだん大きく
+  function fxShimmer(f0, f1, t, dur, vol, pan) {
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur);
+    const trem = ctx.createGain(); trem.gain.value = 0.5;
+    const l = ctx.createOscillator(); l.frequency.setValueAtTime(10, t); l.frequency.linearRampToValueAtTime(22, t + dur);
+    const lg = ctx.createGain(); lg.gain.value = 0.5; l.connect(lg); lg.connect(trem.gain);
+    const pn = ctx.createStereoPanner(); pn.pan.value = pan;
+    o.connect(g); g.connect(trem); trem.connect(pn); pn.connect(fxOut); pn.connect(fxVerb);
+    o.start(t); l.start(t); o.stop(t + dur + 0.02); l.stop(t + dur + 0.02);
+  }
+  // 細かく駆け上がる音（左から右へ流れる。少し遅れて小さく、音程を少しずらしたこだまを反対側に重ねる）
+  function fxArp(notes, t, step, vol) {
+    notes.forEach((nm, i) => {
+      const pan = -0.6 + 1.2 * i / (notes.length - 1);
+      fxTone('pulse25', noteFreq(nm), t + i * step, 0.06, vol, { blip: true, pan });
+      fxTone('pulse12', noteFreq(nm), t + i * step + 0.06, 0.06, vol * 0.4, { pan: -pan, detune: 10 });
+    });
+    return t + notes.length * step;
+  }
+
   // ---- 効果音 ----
   const SFX = {
     tap(t)     { tone('pulse25', 1320, t, 0.05, 0.25, sfxGain); },
@@ -194,33 +272,51 @@ export function createSound() {
         .forEach(([n, w, v]) => tone(w, noteFreq(n), e, 1.4, v, sfxGain));
       ['C7', 'E7', 'G7', 'C8', 'G7', 'E7', 'G7', 'C8'].forEach((n, i) => tone('pulse12', noteFreq(n), e + 0.3 + i * 0.08, 0.07, 0.07, sfxGain));
     },
-    // カードパックを開ける：袋が破れる「シュワッ」（ノイズを高い方から下げる）＋きらっと
+    // カードパックを開ける（約1.9秒）：「キュイーーン」と光りながら上がっていく溜め（0.75秒）
+    //   → 「ドン」＋シンバルで弾ける → 「ヒュ〜ン」と下がって開放。画面は弾ける瞬間にパックが弾ける（screens.js の PACK_BUILD）
     packOpen(t) {
-      const src = ctx.createBufferSource();
-      src.buffer = noiseBuf;
-      const f = ctx.createBiquadFilter();
-      f.type = 'bandpass'; f.Q.value = 1.2;
-      f.frequency.setValueAtTime(6000, t);
-      f.frequency.exponentialRampToValueAtTime(700, t + 0.28);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.35, t + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      src.connect(f); f.connect(g); g.connect(sfxGain);
-      src.start(t, Math.random() * 0.5); src.stop(t + 0.32);
-      ['E6', 'B6', 'E7'].forEach((n, i) => tone('pulse12', noteFreq(n), t + 0.12 + i * 0.05, 0.08, 0.1, sfxGain));
+      const T = 0.75;
+      fxTone('pulse25', noteFreq('G3'), t, T, 0.16, { slideTo: noteFreq('G6'), unison: true, att: 0.5 });
+      fxTone('triangle', noteFreq('G2'), t, T, 0.25, { slideTo: noteFreq('G4'), att: 0.4 });
+      fxShimmer(noteFreq('G5'), noteFreq('G7'), t, T, 0.18, -0.4);
+      fxShimmer(noteFreq('D6'), noteFreq('D8'), t, T, 0.14, 0.4);
+      fxNoise(t, T, 0.45, 400, 9000, 'bandpass', 1, { swell: true });
+      const h = t + T;
+      fxKick(h, 1.0);
+      fxNoise(h, 0.25, 0.9, 6000, 300, 'lowpass', 0.7);
+      fxNoise(h, 1.2, 0.5, 8000, 4000, 'highpass', 0.5, { pan: -0.3 });
+      fxNoise(h + 0.01, 1.2, 0.5, 8000, 4000, 'highpass', 0.5, { pan: 0.3 });
+      fxTone('pulse25', noteFreq('G6'), h, 0.45, 0.2, { slideTo: noteFreq('G2'), unison: true, decay: true });
+      fxNoise(h + 0.05, 0.4, 0.3, 6000, 500, 'bandpass', 1.5);
     },
-    // カードが1枚めくれる：「ピロン」。n（0,1,2）でだんだん高く
-    cardFlip(t, n = 0) {
-      const base = [['C6', 'G6'], ['E6', 'B6'], ['G6', 'D7']][Math.min(n, 2)];
-      tone('pulse25', noteFreq(base[0]), t, 0.06, 0.2, sfxGain);
-      tone('pulse25', noteFreq(base[1]), t + 0.06, 0.14, 0.18, sfxGain);
+    // カードが1枚めくれる（3枚とも同じ音）：「シュッ」→「パチッ」→「ピロン、キラーン」
+    cardFlip(t) {
+      fxNoise(t, 0.12, 0.35, 900, 6000, 'bandpass', 1.5);
+      fxNoise(t + 0.1, 0.03, 0.6, 4000, 3000, 'highpass', 0.7);
+      fxTone('triangle', noteFreq('E3'), t + 0.1, 0.08, 0.35, { decay: true });
+      fxTone('pulse25', noteFreq('B5'), t + 0.1, 0.07, 0.16, { blip: true });
+      fxTone('pulse25', noteFreq('E6'), t + 0.15, 0.2, 0.16, { blip: true, decay: true });
+      fxBell(noteFreq('E7'), t + 0.15, 0.22, 0.3); fxBell(noteFreq('B7'), t + 0.2, 0.14, -0.3);
     },
-    // 3枚めくり終わり：小さく「ジャン♪」
+    // 3枚めくり終わり（約1.9秒）：短い溜め → 3オクターブを「タラララララランッ」
+    //   → 一瞬手前の和音（ソシレファ）から本命の和音（ドミソ）へ「ジャーン」＋ベルのきらきら
     cardsDone(t) {
-      [['C6', 'pulse25', 0.16], ['E6', 'pulse12', 0.1], ['G6', 'pulse12', 0.1], ['C4', 'triangle', 0.3]]
-        .forEach(([n, w, v]) => tone(w, noteFreq(n), t, 0.45, v, sfxGain));
-      ['G6', 'C7', 'E7'].forEach((n, i) => tone('pulse12', noteFreq(n), t + 0.15 + i * 0.06, 0.06, 0.07, sfxGain));
+      for (let i = 0; i < 6; i++) fxNoise(t + i * 0.03, 0.03, 0.12 + i * 0.05, 2500, 1800, 'bandpass', 1.2);
+      const up = ['C5', 'D5', 'E5', 'G5', 'A5', 'C6', 'D6', 'E6', 'G6', 'A6', 'C7', 'D7', 'E7', 'G7'];
+      const e = fxArp(up, t + 0.18, 0.028, 0.17);
+      fxNoise(t + 0.18, e - t - 0.18, 0.3, 500, 8000, 'bandpass', 1, { swell: true });
+      ['G5', 'B5', 'D6', 'F6'].forEach(nm => fxTone('pulse25', noteFreq(nm), e, 0.13, 0.09, { unison: true }));
+      fxTone('triangle', noteFreq('G2'), e, 0.13, 0.4);
+      const j = e + 0.15;
+      fxKick(j, 0.8);
+      fxNoise(j, 1.4, 0.4, 9000, 4000, 'highpass', 0.5, { pan: -0.3 });
+      fxNoise(j + 0.01, 1.4, 0.4, 9000, 4000, 'highpass', 0.5, { pan: 0.3 });
+      ['C6', 'E6', 'G6', 'C7'].forEach(nm => fxTone('pulse25', noteFreq(nm), j, 1.3, 0.1, { unison: true, vib: true, decay: true }));
+      fxTone('pulse12', noteFreq('E7'), j, 1.3, 0.07, { unison: true, vib: true, decay: true });
+      fxTone('triangle', noteFreq('C3'), j, 1.3, 0.4, { decay: true });
+      fxTone('triangle', noteFreq('C2'), j, 1.3, 0.3, { decay: true });
+      ['C7', 'G6', 'E6', 'C7', 'G6', 'E7', 'C7', 'G7', 'E7', 'C7', 'G6', 'E7'].forEach((nm, i) =>
+        fxBell(noteFreq(nm), j + 0.08 + i * 0.07, 0.12, i % 2 ? 0.5 : -0.5, 0.5));
     },
     lose(t) {
       ['G4', 'E4', 'C4'].forEach((n, i) => tone('pulse25', noteFreq(n), t + i * 0.16, i === 2 ? 0.4 : 0.14, 0.25, sfxGain));

@@ -163,10 +163,13 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
     const pack = root.querySelector('[data-pack]'), list = root.querySelector('.pk-cards');
     const msg = root.querySelector('.pk-msg'), ok = root.querySelector('[data-ok]');
     const FLIP_GAP = 600;   // めくれる間隔（ミリ秒）
+    const PACK_BUILD = 750; // 開封の音の溜め（ミリ秒）。このあいだパックは揺れたまま待ち、弾ける音と同時に弾ける
+    let started = false;
     pack.addEventListener('click', () => {
-      if (pack.classList.contains('open')) return;
-      pack.classList.add('open');
+      if (started) return;
+      started = true;
       sfx('packOpen');
+      setTimeout(() => pack.classList.add('open'), PACK_BUILD);
       setTimeout(() => {
         pack.hidden = true; list.hidden = false; msg.textContent = '';
         root.querySelectorAll('[data-card]').forEach((b, i) => setTimeout(() => {
@@ -174,7 +177,7 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
           sfx('cardFlip', i);
           if (i === cards.length - 1) setTimeout(() => { msg.textContent = 'アイテムに入りました'; ok.hidden = false; sfx('cardsDone'); }, 450);
         }, FLIP_GAP * (i + 1)));
-      }, 350);
+      }, PACK_BUILD + 350);
     });
     ok.addEventListener('click', () => { boxMode = 'item'; showItems(); });
   }

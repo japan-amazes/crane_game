@@ -234,7 +234,10 @@ export function createScene(THREE, canvas) {
   function roundedBox(w, h, d, r) {
     const m = 3, n = 2 + 2 * m;   // 丸める帯に3分割ずつ
     const geo = new THREE.BoxGeometry(w, h, d, n, n, n);
-    const pos = geo.attributes.position, nor = geo.attributes.normal;
+    const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
+    // 各頂点がどの面か（+x, −x, +y, −y, +z, −z の順に作られている）
+    const face = new Array(pos.count);
+    for (const [gi, gr] of geo.groups.entries()) for (let i = gr.start; i < gr.start + gr.count; i++) face[geo.index.getX(i)] = gr.materialIndex;
     const half = [w / 2, h / 2, d / 2];
     const band = 2 * m / n;
     const v = [0, 0, 0];
@@ -258,6 +261,14 @@ export function createScene(THREE, canvas) {
         nor.setXYZ(i, off[0] / len, off[1] / len, off[2] / len);
       }
       pos.setXYZ(i, v[0], v[1], v[2]);
+      // 貼る絵の位置（UV）を、丸めたあとの位置から決め直す（絵が真ん中に寄って引き伸ばされないように）
+      const f = face[i], U = (k, sign) => (sign > 0 ? v[k] + half[k] : half[k] - v[k]) / (2 * half[k]);
+      if (f === 0) uv.setXY(i, U(2, -1), U(1, 1));        // +x
+      else if (f === 1) uv.setXY(i, U(2, 1), U(1, 1));    // −x
+      else if (f === 2) uv.setXY(i, U(0, 1), U(2, -1));   // +y
+      else if (f === 3) uv.setXY(i, U(0, 1), U(2, 1));    // −y
+      else if (f === 4) uv.setXY(i, U(0, 1), U(1, 1));    // +z（正面）
+      else uv.setXY(i, U(0, -1), U(1, 1));                // −z
     }
     return geo;
   }

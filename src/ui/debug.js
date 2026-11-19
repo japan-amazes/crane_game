@@ -33,7 +33,6 @@ const SCHEMA = [
   { group: 'リング' },
   { path: 'ring.diameter', label: '直径（外径）', min: 3, max: 10, step: 0.1, unit: 'cm' },
   { path: 'ring.thickness', label: '太さ', min: 0.4, max: 1.0, step: 0.05, unit: 'cm' },
-  { path: 'ring.mass', label: '重さ', min: 8, max: 30, step: 1, unit: 'g' },
   { path: 'ring.yawDeg', label: '向き', min: 0, max: 180, step: 5, unit: '°' },
   { path: 'ring.friction', label: 'すべりにくさ', min: 0.05, max: 0.8, step: 0.05, unit: '' },
   { path: 'ring.angularDamping', label: '回りにくさ', min: 0.2, max: 2, step: 0.1, unit: '' },
@@ -41,7 +40,7 @@ const SCHEMA = [
   { group: 'フック' },
   { path: 'hook.height', label: '高さ（板からてっぺんまで）', min: 3, max: 6, step: 0.1, unit: 'cm' },
   { path: 'hook.thickness', label: '太さ', min: 0.3, max: 0.7, step: 0.02, unit: 'cm' },
-  { path: 'hook.tipBallRadius', label: '先端の玉（0=なし）', min: 0, max: 0.4, step: 0.05, unit: 'cm' },
+  { path: 'hook.tipBall', label: '先端の玉', options: { '0': 'なし', '1': 'あり' } },
   { path: 'hook.yawDeg', label: '向き（0=手前 90=右）', min: 0, max: 359, step: 5, unit: '°' },
   { path: 'hook.offsetX', label: '位置（左右）', min: -3, max: 3, step: 0.25, unit: 'cm' },
   { path: 'hook.offsetZ', label: '位置（手前奥）', min: -3, max: 3, step: 0.25, unit: 'cm' },
@@ -50,7 +49,6 @@ const SCHEMA = [
   { path: 'board.width', label: '板の幅（左右）', min: 8, max: 16, step: 0.5, unit: 'cm' },
   { path: 'board.depth', label: '板の奥行き', min: 8, max: 16, step: 0.5, unit: 'cm' },
   { path: 'board.height', label: '板の厚み', min: 0.5, max: 2, step: 0.1, unit: 'cm' },
-  { path: 'board.mass', label: '板の重さ', min: 60, max: 250, step: 10, unit: 'g' },
   { path: 'board.material', label: '板の素材', options: { plastic: 'プラスチック', metal: '金属', wood: '木' } },
   { path: 'board.friction', label: '板の表面のすべりにくさ（小さいほどすべる）', min: 0, max: 1, step: 0.01 },
   { path: 'field.tableTiltDeg', label: '台の傾き（＋＝奥が低い）', min: -5, max: 5, step: 0.5, unit: '°' }
@@ -58,6 +56,19 @@ const SCHEMA = [
 
 // 移動範囲の左右の限界：リングの外側のふちが、筐体の左右の壁（中心から20cm）の1.5cm手前で止まる位置
 function xLimit(ringDiameter) { return 20 - 1.5 - ringDiameter / 2; }
+
+// 待機中のリングの上のふちの高さの上限（板から）。これより上は、正面の画面で枠の天幕に隠れる
+const RING_TOP_MAX = 36;
+// アームの高さを、リングが見える範囲に合わせる。戻り値 { armHeight, changed }
+function fitArmHeight(p) {
+  const kSpan = p.connector.diameter - p.connector.thickness;
+  const n = Math.max(2, Math.round(p.chain.length / p.chain.pitch));
+  const chain = (p.chain.length / n) * n;
+  const hi = RING_TOP_MAX + chain + kSpan;                                   // リングの上のふちが上限になる高さ
+  const lo = p.hook.height + 1 + chain + kSpan + p.ring.diameter - p.ring.thickness / 2;   // リングの下のふちがフックの1cm上
+  const a = Math.max(lo, Math.min(hi, p.field.armHeight));
+  return { armHeight: Math.round(a * 10) / 10, changed: Math.abs(a - p.field.armHeight) > 0.05 };
+}
 
 // basePreset：今のステージの設定（ステージが変わったら setBase で差し替える）
 // onStageReset：「ステージ1からやり直す」を押したとき
@@ -234,26 +245,34 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     for (const [path, { input, item }] of Object.entries(inputs)) {
       setPath(p, path, item.options ? input.value : Number(input.value));
     }
+    const fit = fitArmHeight(p);
+    p.field.armHeight = fit.armHeight;   // 実際に使うアームの高さで目安を出す
     const h = heightInfo(p);
     const stop = h.bottomAtStop >= 0
       ? `板から ${h.bottomAtStop.toFixed(1)}cm 上で止まる（板に届かない）`
       : `板に着いて ${(-h.bottomAtStop).toFixed(1)}cm たるむ`;
     const lim = xLimit(p.ring.diameter);
-    const cut = p.field.xMax > lim || p.field.xMin < -lim
+    let cut = p.field.xMax > lim || p.field.xMin < -lim
       ? `<br>移動範囲の左右：リングの大きさに合わせて ±${lim.toFixed(1)}cm までになります` : '';
+    if (fit.changed) cut += `<br>アームの高さ：リングが画面に見えるように ${fit.armHeight}cm になります`;
     info.innerHTML = `待機中のリング下端：フックのてっぺんより ${h.gapAtHome.toFixed(1)}cm ${h.gapAtHome >= 0 ? '上' : '下（フックに当たる）'}<br>下がりきったとき：${stop}${cut}`;
   }
 
   function valueOf(path) {
+    if (path === 'hook.tipBall' && !(path in overrides)) return basePreset.hook.tipBallRadius > 0 ? '1' : '0';
     return path in overrides ? overrides[path] : getPath(basePreset, path);
   }
 
   function currentPreset() {
     const p = JSON.parse(JSON.stringify(basePreset));
+    p.hook.tipBall = p.hook.tipBallRadius > 0 ? '1' : '0';
     // 完成版では、特訓モードのときだけ変えた設定を使う
     if (dev || isTraining()) for (const [path, v] of Object.entries(overrides)) setPath(p, path, v);
     // チェーンの長さを直接変えたら、ステージの「割合」より優先。そうでなければ、下降制限・リングを変えたときに割合から計算し直す
     if ('chain.length' in overrides) p.chain.lengthRatio = null;
+    // 先端の玉：ありなら標準の大きさ（フックの棒の太さの1.6倍の直径）
+    p.hook.tipBallRadius = p.hook.tipBall === '1' ? p.hook.thickness * 0.8 : 0;
+    delete p.hook.tipBall;
     // リングが筐体の左右の壁からはみ出さないように、移動範囲の左右をリングの大きさに合わせて縮める
     const lim = xLimit(p.ring.diameter);
     p.field.xMin = Math.max(p.field.xMin, -lim);
@@ -262,7 +281,13 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     const hx = Math.max(0, p.board.width / 2 - 1.5), hz = Math.max(0, p.board.depth / 2 - 1.5);
     p.hook.offsetX = Math.max(-hx, Math.min(hx, p.hook.offsetX || 0));
     p.hook.offsetZ = Math.max(-hz, Math.min(hz, p.hook.offsetZ || 0));
-    return applyChainRatio(p);
+    applyChainRatio(p);
+    // 待機中のリングが画面に見える高さに収まるように、アームの高さを合わせる
+    //   上：リングの上のふちが天井（枠の天幕）に隠れない高さ（板から RING_TOP_MAX cm）まで
+    //   下：リングの下のふちが、フックのてっぺんより1cm上
+    const fit = fitArmHeight(p);
+    p.field.armHeight = fit.armHeight;
+    return p;
   }
 
   function toggle(force) {
@@ -295,6 +320,7 @@ function el(tag, cls) {
 }
 
 function getPath(obj, path) {
+  if (path === 'hook.tipBall') return obj.hook.tipBallRadius > 0 ? '1' : '0';   // 玉の大きさから「なし／あり」
   return path.split('.').reduce((o, k) => (o ? o[k] : undefined), obj);
 }
 

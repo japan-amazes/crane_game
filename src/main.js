@@ -12,6 +12,15 @@ import { createPrizeShelf, shelfHole, SHELF } from './machines/prizeShelf.js';
 import { applyChainRatio } from './game/chainRange.js';
 import { celebrate } from './ui/celebrate.js';
 
+// トップ画面：START を押したらフェードして消す（ゲームの準備は後ろで進める）
+{
+  const title = document.getElementById('title');
+  document.getElementById('btnStart').addEventListener('click', () => {
+    title.classList.add('out');
+    setTimeout(() => title.remove(), 500);
+  });
+}
+
 // 開発中：特訓ボタンを常に表示し、テスト用の項目（クレジット無制限など）を出す。完成版では false にする
 const DEV_MODE = true;
 
@@ -401,10 +410,10 @@ async function boot() {
   // 使用中のアイテム（リトライ券・強化）を小さく表示
   function effectChips() {
     const out = [];
-    if (progress.retryArmed) out.push('🔁');
+    if (progress.retryArmed) out.push(itemsMod.iconTag(itemsMod.findItemDef('retry'), 'it-hud'));
     for (const it of itemsMod.ITEMS.filter(x => x.boost)) {
       const r = progress.boostRemain(it.id);
-      if (r > 0) out.push(`${it.icon}${Math.ceil(r / 3600000)}h`);
+      if (r > 0) out.push(`${itemsMod.iconTag(it, 'it-hud')}${Math.ceil(r / 3600000)}h`);
     }
     return out.length ? `<span class="hud-e">${out.join(' ')}</span>` : '';
   }
@@ -688,7 +697,7 @@ async function boot() {
   }
 
   // コンプリートのお祝い（全コンプリートなら特訓モードの開放も）
-  const PACK_ICON = '<span class="mini-pack">CARD<br>PACK</span>';
+  const PACK_ICON = '<img class="cel-pack" src="./assets/items/card_pack.webp" alt="">';
   function showComplete(w) {
     const pack = { icon: PACK_ICON, title: 'カードパック ×1', text: `${w.completedCat.name}のコンプリート報酬。マイボックスの「アイテム」から開けられます` };
     if (w.allComplete) {

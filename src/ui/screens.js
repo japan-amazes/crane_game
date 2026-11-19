@@ -3,7 +3,7 @@
 // どれも画面全体にかぶせる表示（モーダル）
 // =============================================================
 import { CATEGORIES, paintPrize, DUP_POINTS } from '../game/prizes.js';
-import { ITEMS, PACK_CARDS } from '../game/items.js';
+import { ITEMS, PACK_CARDS, CARD_IMG, iconTag } from '../game/items.js';
 
 // canUseReady()：①を押す前か（プレイ中に使えないアイテムの判定）
 // onUseItem(id, arg)：アイテムを使う（ゲーム側で処理）。戻り値 { ok, msg }
@@ -94,16 +94,16 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
   function showItems(msg = '') {
     const ready = canUseReady();
     const effects = [];
-    if (progress.retryArmed) effects.push('🔁 リトライ券：使用中（次にはずれたらクレジットが戻ります）');
+    if (progress.retryArmed) effects.push(`${iconTag(ITEMS.find(x => x.id === 'retry'), 'it-s')} リトライ券：使用中（次にはずれたらクレジットが戻ります）`);
     for (const it of ITEMS.filter(x => x.boost)) {
       const r = progress.boostRemain(it.id);
-      if (r > 0) effects.push(`${it.icon} ${it.name}：あと${hm(r)}`);
+      if (r > 0) effects.push(`${iconTag(it, 'it-s')} ${it.name}：あと${hm(r)}`);
     }
     open(`
       ${boxHead()}
       ${msg ? `<div class="m-msg">${msg}</div>` : ''}
       <div class="m-pack">
-        <div class="m-pack-pic">CARD<br>PACK</div>
+        <img class="m-pack-pic" src="${CARD_IMG.pack}" alt="">
         <div class="m-pack-txt">カードパック <b>×${progress.packs}</b><small>${PACK_CARDS}枚入り。カテゴリーをコンプリートするともらえます</small></div>
         <button class="big" data-open ${progress.packs ? '' : 'disabled'}>開ける</button>
       </div>
@@ -112,7 +112,7 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
         const n = progress.itemCount(it.id);
         const lock = it.when === 'ready' && !ready;
         return `<div class="m-item ${n ? '' : 'none'}">
-          <div class="m-item-ic">${it.icon}</div>
+          <div class="m-item-ic">${iconTag(it)}</div>
           <div class="m-item-txt"><b>${it.name}</b> <span>×${n}</span><small>${it.desc}</small></div>
           <button data-use="${it.id}" ${n && !lock ? '' : 'disabled'}>使う</button>
         </div>`;
@@ -150,11 +150,11 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
     open(`
       <div class="m-head"><b>カードパック</b></div>
       <div class="pk-stage">
-        <button class="pk-pack" data-pack>CARD<br>PACK<small>タップして開ける</small></button>
+        <button class="pk-pack" data-pack><img src="${CARD_IMG.pack}" alt=""><small>タップして開ける</small></button>
         <div class="pk-cards" hidden>${cards.map((c, i) => `
           <button class="pk-card" data-card="${i}">
-            <span class="pk-back">?</span>
-            <span class="pk-front"><i>${c.icon}</i><b>${(c.card || [c.name]).join('<br>')}</b></span>
+            <span class="pk-back"></span>
+            <span class="pk-front">${iconTag(c, 'pk-ic')}<b>${(c.card || [c.name]).join('<br>')}</b></span>
           </button>`).join('')}</div>
       </div>
       <div class="m-sum pk-msg">パックをタップしてください</div>
@@ -187,7 +187,7 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem })
       ${msg ? `<div class="m-msg">${msg}</div>` : ''}
       <div class="m-items">${ITEMS.map(it => `
         <div class="m-item">
-          <div class="m-item-ic">${it.icon}</div>
+          <div class="m-item-ic">${iconTag(it)}</div>
           <div class="m-item-txt"><b>${it.name}</b> <span>所持 ×${progress.itemCount(it.id)}</span><small>${it.desc}</small></div>
           <button data-buy="${it.id}" ${progress.points >= it.price ? '' : 'disabled'}>${it.price}pt</button>
         </div>`).join('')}</div>

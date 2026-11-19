@@ -4,6 +4,7 @@
 //   when：使えるとき  any＝いつでも / ready＝①を押す前（プレイ中でないとき）
 //   boost：時間が来ると切れる強化（効いている間に使うと時間が延びる）
 //   card：カードに書く名前（カードの幅に収まるように行を分ける）
+//   icon：画像がないときの代わり（絵文字）
 // =============================================================
 
 export const BOOST_MS = 24 * 60 * 60 * 1000;   // 強化カードの効く時間（24時間）
@@ -24,6 +25,11 @@ export const ITEMS = [
   { id: 'regenFast', name: '回復の速さアップ', card: ['回復の速さ', 'アップ'], icon: '⚡', price: 50, when: 'any', boost: true,
     desc: '24時間、クレジットの回復が6分→4分ごとになります' }
 ];
+
+// アイコンの画像（assets/items/icon_<id>.webp）
+for (const it of ITEMS) it.img = `./assets/items/icon_${it.id}.webp`;
+export const CARD_IMG = { front: './assets/items/card_front.webp', back: './assets/items/card_back.webp', pack: './assets/items/card_pack.webp' };
+export const iconTag = (it, cls = '') => `<img class="it-img ${cls}" src="${it.img}" alt="">`;
 
 export function findItemDef(id) { return ITEMS.find(it => it.id === id); }
 

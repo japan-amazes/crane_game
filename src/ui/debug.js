@@ -102,8 +102,8 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
       overrides = {};
       save(overrides);
       setTraining(false);
-      toggle(false);
       onApply();
+      build();   // 開いたまま、通常の設定の値に表示しなおす
     });
     container.appendChild(trRow);
 
@@ -172,7 +172,8 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
         if (Math.abs(Number(input.value) - Number(def)) <= (item.max - item.min) * 0.03) input.value = def;
       };
       input.addEventListener('input', () => { snap(); keepHeights(item.path); show(); updateInfo(); });
-      back.addEventListener('click', () => { input.value = def; input.dispatchEvent(new Event('input')); });
+      input.addEventListener('change', liveApply);   // 指を離したら、上の筐体に反映
+      back.addEventListener('click', () => { input.value = def; input.dispatchEvent(new Event('input')); liveApply(); });
       show();
       if (item.options) row.appendChild(input);
       else {
@@ -189,33 +190,19 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     }
 
     const btns = el('div', 'dbg-buttons');
-    const apply = el('button', 'big');
-    apply.textContent = '適用してやり直す';
-    apply.addEventListener('click', () => {
-      overrides = {};
-      for (const [path, { input, item }] of Object.entries(inputs)) {
-        const v = item.options ? input.value : Number(input.value);
-        if (String(v) !== String(getPath(basePreset, path))) overrides[path] = v;
-      }
-      save(overrides);
-      if (!dev && !isTraining()) setTraining(true);   // 完成版では、設定を変えて遊ぶのは特訓モードだけ
-      toggle(false);
-      onApply();
-    });
     const reset = el('button', '');
     reset.textContent = '初期値に戻す';
     reset.addEventListener('click', () => {
-      overrides = {};
-      save(overrides);
       for (const [path, { input }] of Object.entries(inputs)) {
         input.value = getPath(basePreset, path);
         input.dispatchEvent(new Event('input'));
       }
+      liveApply();
     });
     const close = el('button', '');
     close.textContent = '閉じる';
     close.addEventListener('click', () => toggle(false));
-    btns.append(apply, reset, close);
+    btns.append(reset, close);
     if (onStageReset && dev) {   // テスト用（開発中だけ表示）
       const stage1 = el('button', '');
       stage1.textContent = 'ステージ1からやり直す';
@@ -224,6 +211,27 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     }
     container.appendChild(btns);
     updateInfo();
+  }
+
+  // 設定をその場で反映：指を離して0.3秒後に、上の筐体をこの設定で作り直す
+  //   設定を変えたら特訓モード（クレジット不要・記録なし）にする
+  let liveTimer = 0;
+  function liveApply() {
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => {
+      overrides = {};
+      for (const [path, { input, item }] of Object.entries(inputs)) {
+        const v = item.options ? input.value : Number(input.value);
+        if (String(v) !== String(getPath(basePreset, path))) overrides[path] = v;
+      }
+      save(overrides);
+      if (Object.keys(overrides).length && !isTraining()) {
+        setTraining(true);
+        const tr = container.querySelector('.dbg-training input');
+        if (tr) tr.checked = true;
+      }
+      onApply();
+    }, 300);
   }
 
   // アームの高さと下降制限がぶつからないように：下降制限はアームの高さより 10cm 以上低く
@@ -298,6 +306,7 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     const open = typeof force === 'boolean' ? force : container.hidden;
     if (open) build();   // 特訓モードの状態などを表示しなおす
     container.hidden = !open;
+    document.body.classList.toggle('dbg-open', open);   // 開いている間は下のボタンを隠す（遊べない）
   }
 
   // ステージが変わったとき：表示する設定を差し替え、試しの変更は消す

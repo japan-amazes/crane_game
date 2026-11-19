@@ -321,7 +321,11 @@
   @keyframes btn-glow-cool { 0%, 100% { box-shadow: 0 0 6px #5fd0ff66; } 50% { box-shadow: 0 0 18px #5fd0ff, 0 0 32px #2f7bff88; } }
 
   /* ---- 数値調整パネル（開発用） ---- */
-  #debug { position: fixed; inset: 0; overflow-y: auto; background: #1e1036f7; padding: calc(14px + var(--sat)) 14px 40px; z-index: 10; font-weight: 500; }
+  #debug { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #1e1036;
+    padding: 12px calc(14px + var(--sar)) calc(30px + env(safe-area-inset-bottom)) calc(14px + var(--sal)); font-weight: 500;
+    border-top: 2px solid #ff8cc2; }
+  #debug[hidden] { display: none; }
+  body.dbg-open #controls { display: none; }
   .dbg-head { margin-bottom: 8px; }
   .dbg-sub { display: block; font-size: 12px; color: var(--sub); }
   .dbg-group { margin: 18px 0 6px; font-weight: 800; color: var(--pink); }
@@ -406,7 +410,7 @@
   body.theme-cool .m-mode button.on { background: linear-gradient(#2f9cff, #0a4fc0); border-color: #9fe3ff; }
   body.theme-cool .m-mode i { color: #0b1220; background: #5fd0ff; }
   body.theme-cool .m-msg, body.theme-cool .m-item-txt span { color: #5fd0ff; }
-  body.theme-cool #debug { background: #05070cf7; }
+  body.theme-cool #debug { background: #05070c; border-top-color: #5fd0ff; }
   body.theme-cool .dbg-row select { background: #161b24; border-color: #4a5466; }
   body.theme-cool .dbg-info { background: #161b24; }
   body.theme-cool .dbg-row { border-bottom-color: #1e2430; }
@@ -449,8 +453,9 @@
       <button id="btnSfx">効果音</button>
     </div>
   </div>
+  <!-- 特訓の設定：開いている間は、下半分（ボタンの場所）に出してスクロールする。上の筐体でその場で確認 -->
+  <div id="debug" hidden></div>
 </div>
-<div id="debug" hidden></div>
 <div id="modal" hidden></div>
 <script>
   // iPhone の Safari は user-scalable=no を無視するので、ダブルタップとピンチでの拡大を止める

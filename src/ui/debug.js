@@ -11,55 +11,49 @@ const STORE_KEY = 'crane.debug.overrides.v1';
 // path：プリセット内の場所 / label：表示名
 const SCHEMA = [
   { group: 'アーム' },
-  { path: 'arm.speedX', label: '横の速さ', min: 2, max: 15, step: 0.5, unit: 'cm/s' },
-  { path: 'arm.speedZ', label: '奥の速さ', min: 2, max: 15, step: 0.5, unit: 'cm/s' },
-  { path: 'arm.accel', label: '動き出しの急さ', min: 10, max: 200, step: 5, unit: 'cm/s²' },
-  { path: 'arm.decel', label: '止まるときの急さ', min: 10, max: 300, step: 5, unit: 'cm/s²' },
+  { path: 'arm.speedX', label: '横の速さ', min: 5, max: 15, step: 0.5, unit: 'cm/s' },
+  { path: 'arm.speedZ', label: '奥の速さ', min: 5, max: 15, step: 0.5, unit: 'cm/s' },
+  { path: 'arm.accel', label: '動き出しの急さ', min: 40, max: 200, step: 5, unit: 'cm/s²' },
+  { path: 'arm.decel', label: '止まるときの急さ', min: 40, max: 300, step: 5, unit: 'cm/s²' },
   { path: 'field.startSide', label: '初期位置', options: { left: '左端（①で右へ）', right: '右端（①で左へ）' } },
-  { path: 'field.xMin', label: '移動範囲：左端', min: -28, max: -2, step: 0.5, unit: 'cm' },
-  { path: 'field.xMax', label: '移動範囲：右端', min: 2, max: 28, step: 0.5, unit: 'cm' },
-  { path: 'field.zFront', label: '移動範囲：手前（初期位置）', min: 2, max: 23, step: 0.5, unit: 'cm' },
-  { path: 'field.zBack', label: '移動範囲：奥', min: -23, max: -2, step: 0.5, unit: 'cm' },
-  { path: 'field.armHeight', label: 'アームの高さ（板の上面から）', min: 15, max: 80, step: 0.1, unit: 'cm' },
-  { path: 'arm.dropLimit', label: '下降制限（止まる高さ・板の上面から）', min: 5, max: 75, step: 0.1, unit: 'cm' },
-  { path: 'arm.holdTime', label: '下での待ち時間', min: 0, max: 3, step: 0.1, unit: '秒' },
+  { path: 'field.xMin', label: '移動範囲：左端', min: -16, max: -2, step: 0.5, unit: 'cm' },
+  { path: 'field.xMax', label: '移動範囲：右端', min: 2, max: 16, step: 0.5, unit: 'cm' },
+  { path: 'field.zFront', label: '移動範囲：手前（初期位置）', min: 2, max: 12, step: 0.5, unit: 'cm' },
+  { path: 'field.zBack', label: '移動範囲：奥', min: -10, max: -2, step: 0.5, unit: 'cm' },
+  { path: 'field.armHeight', label: 'アームの高さ（板の上面から）', min: 35, max: 55, step: 0.1, unit: 'cm' },
+  { path: 'arm.dropLimit', label: '下降制限（止まる高さ・板の上面から）', min: 10, max: 30, step: 0.1, unit: 'cm' },
+  { path: 'arm.holdTime', label: '下での待ち時間', min: 0.5, max: 2, step: 0.1, unit: '秒' },
   { path: 'arm.ascendSpeed', label: '引き上げの速さ', min: 2, max: 15, step: 0.5, unit: 'cm/s' },
-  { path: 'arm.judgeDelay', label: '判定までの時間（上昇開始から）', min: 0.5, max: 8, step: 0.1, unit: '秒' },
   { group: 'チェーン' },
-  { path: 'chain.length', label: 'チェーンの長さ', min: 5, max: 70, step: 0.1, unit: 'cm' },
-  { path: 'chain.pitch', label: 'コマの長さ（ピッチ）', min: 0.4, max: 1.5, step: 0.05, unit: 'cm' },
-  { path: 'chain.linearDamping', label: '揺れの残りにくさ', min: 0, max: 2, step: 0.05, unit: '' },
-  { path: 'chain.twistStiffness', label: 'ねじれの戻る強さ', min: 0, max: 2000, step: 20, unit: '' },
+  { path: 'chain.length', label: 'チェーンの長さ', min: 8, max: 30, step: 0.1, unit: 'cm' },
+  { path: 'chain.pitch', label: 'コマの長さ（ピッチ）', min: 0.5, max: 1.0, step: 0.05, unit: 'cm' },
+  { path: 'chain.linearDamping', label: '揺れの残りにくさ', min: 0, max: 0.5, step: 0.05, unit: '' },
+  { path: 'chain.twistStiffness', label: 'ねじれの戻る強さ', min: 100, max: 1000, step: 20, unit: '' },
   { path: 'chain.twistDamping', label: 'ねじれの止まりやすさ', min: 0, max: 150, step: 2, unit: '' },
-  { path: 'chain.rubDamping', label: 'コマ同士のこすれ', min: 0, max: 100, step: 2, unit: '' },
-  { path: 'chain.maxBendDeg', label: 'コマが曲がる上限', min: 10, max: 150, step: 5, unit: '°' },
   { group: 'リング' },
   { path: 'ring.diameter', label: '直径（外径）', min: 3, max: 10, step: 0.1, unit: 'cm' },
-  { path: 'ring.thickness', label: '太さ', min: 0.1, max: 1.2, step: 0.05, unit: 'cm' },
-  { path: 'ring.mass', label: '重さ', min: 5, max: 60, step: 1, unit: 'g' },
+  { path: 'ring.thickness', label: '太さ', min: 0.4, max: 1.0, step: 0.05, unit: 'cm' },
+  { path: 'ring.mass', label: '重さ', min: 8, max: 30, step: 1, unit: 'g' },
   { path: 'ring.yawDeg', label: '向き', min: 0, max: 180, step: 5, unit: '°' },
   { path: 'ring.friction', label: 'すべりにくさ', min: 0, max: 1.2, step: 0.05, unit: '' },
   { path: 'ring.angularDamping', label: '回りにくさ', min: 0, max: 5, step: 0.1, unit: '' },
   { path: 'ring.initialTwistDeg', label: '初期のねじれ', min: -180, max: 180, step: 5, unit: '°' },
-  { group: 'つなぎのリング' },
-  { path: 'connector.diameter', label: '直径（外径）', min: 0.6, max: 3, step: 0.1, unit: 'cm' },
-  { path: 'connector.thickness', label: '太さ', min: 0.1, max: 0.6, step: 0.05, unit: 'cm' },
   { group: 'フック' },
-  { path: 'hook.height', label: '高さ（板からてっぺんまで）', min: 2.5, max: 8, step: 0.1, unit: 'cm' },
-  { path: 'hook.thickness', label: '太さ', min: 0.2, max: 1, step: 0.02, unit: 'cm' },
+  { path: 'hook.height', label: '高さ（板からてっぺんまで）', min: 3, max: 6, step: 0.1, unit: 'cm' },
+  { path: 'hook.thickness', label: '太さ', min: 0.3, max: 0.7, step: 0.02, unit: 'cm' },
   { path: 'hook.tipBallRadius', label: '先端の玉（0=なし）', min: 0, max: 0.6, step: 0.05, unit: 'cm' },
   { path: 'hook.yawDeg', label: '向き（0=手前 90=右）', min: 0, max: 359, step: 5, unit: '°' },
   { path: 'hook.offsetX', label: '位置（左右）', min: -5, max: 5, step: 0.25, unit: 'cm' },
   { path: 'hook.offsetZ', label: '位置（手前奥）', min: -4, max: 4, step: 0.25, unit: 'cm' },
   { path: 'hook.friction', label: 'すべりにくさ', min: 0, max: 1.2, step: 0.05, unit: '' },
   { group: '板・台' },
-  { path: 'board.width', label: '板の幅（左右）', min: 4, max: 30, step: 0.5, unit: 'cm' },
-  { path: 'board.depth', label: '板の奥行き', min: 4, max: 25, step: 0.5, unit: 'cm' },
-  { path: 'board.height', label: '板の厚み', min: 0.3, max: 5, step: 0.1, unit: 'cm' },
-  { path: 'board.mass', label: '板の重さ', min: 20, max: 400, step: 10, unit: 'g' },
+  { path: 'board.width', label: '板の幅（左右）', min: 8, max: 16, step: 0.5, unit: 'cm' },
+  { path: 'board.depth', label: '板の奥行き', min: 8, max: 16, step: 0.5, unit: 'cm' },
+  { path: 'board.height', label: '板の厚み', min: 0.5, max: 2, step: 0.1, unit: 'cm' },
+  { path: 'board.mass', label: '板の重さ', min: 60, max: 250, step: 10, unit: 'g' },
   { path: 'board.material', label: '板の素材', options: { plastic: 'プラスチック', metal: '金属', wood: '木' } },
   { path: 'board.friction', label: '板の表面のすべりにくさ（小さいほどすべる）', min: 0, max: 1, step: 0.01 },
-  { path: 'field.tableTiltDeg', label: '台の傾き（＋＝奥が低い）', min: -10, max: 10, step: 0.5, unit: '°' }
+  { path: 'field.tableTiltDeg', label: '台の傾き（＋＝奥が低い）', min: -5, max: 5, step: 0.5, unit: '°' }
 ];
 
 // basePreset：今のステージの設定（ステージが変わったら setBase で差し替える）
@@ -129,6 +123,11 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
       const value = el('span', 'dbg-value');
       label.textContent = item.label;
       label.appendChild(value);
+      // ↺：この項目だけ初期設定（今のステージの値）に戻す
+      const back = el('button', 'dbg-back');
+      back.textContent = '↺';
+      back.type = 'button';
+      label.appendChild(back);
       row.appendChild(label);
 
       let input;
@@ -146,13 +145,31 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
       }
       const cur = valueOf(item.path);
       input.value = cur;
+      const def = getPath(basePreset, item.path);
       const show = () => {
         value.textContent = item.options ? '' : ` ${input.value}${item.unit ? ' ' + item.unit : ''}`;
-        row.classList.toggle('changed', String(input.value) !== String(getPath(basePreset, item.path)));
+        const changed = String(input.value) !== String(def);
+        row.classList.toggle('changed', changed);
+        back.hidden = !changed;
       };
-      input.addEventListener('input', () => { show(); updateInfo(); });
+      // 初期設定の近く（幅の3%以内）まで動かしたら、ぴたっと初期設定の値にする
+      const snap = () => {
+        if (item.options) return;
+        if (Math.abs(Number(input.value) - Number(def)) <= (item.max - item.min) * 0.03) input.value = def;
+      };
+      input.addEventListener('input', () => { snap(); keepHeights(item.path); show(); updateInfo(); });
+      back.addEventListener('click', () => { input.value = def; input.dispatchEvent(new Event('input')); });
       show();
-      row.appendChild(input);
+      if (item.options) row.appendChild(input);
+      else {
+        // スライダーの、初期設定の位置に目印（▼）
+        const wrap = el('div', 'dbg-slider');
+        const mark = el('span', 'dbg-mark');
+        const t = Math.min(1, Math.max(0, (Number(def) - item.min) / (item.max - item.min)));
+        mark.style.left = `calc(${t * 100}% + ${(0.5 - t) * 22}px)`;   // つまみの幅（約22px）のぶんを補正
+        wrap.append(mark, input);
+        row.appendChild(wrap);
+      }
       container.appendChild(row);
       inputs[item.path] = { input, item };
     }
@@ -193,6 +210,18 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     }
     container.appendChild(btns);
     updateInfo();
+  }
+
+  // アームの高さと下降制限がぶつからないように：下降制限はアームの高さより 10cm 以上低く
+  function keepHeights(path) {
+    const a = inputs['field.armHeight'], d = inputs['arm.dropLimit'];
+    if (!a || !d) return;
+    const maxDrop = Number(a.input.value) - 10;
+    if (Number(d.input.value) > maxDrop) {
+      if (path === 'arm.dropLimit') d.input.value = maxDrop;
+      else d.input.value = Math.max(d.item.min, maxDrop);
+      if (path !== 'arm.dropLimit') d.input.dispatchEvent(new Event('input'));
+    }
   }
 
   // 入力中の値で高さの目安を計算して表示

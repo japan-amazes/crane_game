@@ -31,7 +31,7 @@ function tex(THREE, name, { repeat = null, flipX = false } = {}) {
 export function buildCabinet(THREE, { field, theme }) {
   const g = new THREE.Group();
   const th = theme === 'cool' ? 'cool' : 'cute';
-  const back = (field ? field.zBack : -10) - 4.6;   // 背面：景品パネルのすぐ後ろ
+  const back = -10 - 4.6;   // 背面：景品パネルのすぐ後ろ（移動範囲を変えても動かない）
   const depth = CAB.front - back, zc = (CAB.front + back) / 2;
   const H = CAB.height, yMid = H / 2 - 2;
   const flat = map => new THREE.MeshBasicMaterial({ map, toneMapped: false });

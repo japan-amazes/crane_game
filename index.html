@@ -330,6 +330,13 @@
   .dbg-label { font-size: 13px; margin-bottom: 4px; }
   .dbg-value { color: var(--sub); }
   .dbg-row input[type=range] { width: 100%; }
+  /* 初期設定の目印と、戻すボタン */
+  .dbg-slider { position: relative; padding-top: 8px; }
+  .dbg-mark { position: absolute; top: -2px; transform: translateX(-50%); font-size: 10px; line-height: 1; color: var(--gold);
+    pointer-events: none; }
+  .dbg-mark::before { content: '▼'; }
+  .dbg-back { margin-left: 8px; padding: 0 8px; font-size: 13px; line-height: 20px; border-radius: 999px; }
+  .dbg-back[hidden] { display: none; }
   /* 選択欄は16px以上（iPhone の Safari は16px未満の入力欄をタップすると画面を自動で拡大してしまう） */
   .dbg-row select { width: 100%; padding: 6px; font-size: 16px; background: #2f1655; color: #fff; border: 1px solid #8a63d2; border-radius: 8px; }
   .dbg-check { display: flex; align-items: center; gap: 8px; font-size: 14px; }

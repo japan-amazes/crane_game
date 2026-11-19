@@ -495,7 +495,7 @@ export function createScene(THREE, canvas) {
   applyThemeLight(theme);
   let cabinet = null, cabinetKey = '';
   function setCabinet(field) {
-    const key = `${field ? field.zBack : -10}|${theme}`;
+    const key = theme;   // 筐体はテーマが変わったときだけ作り直す
     if (cabinet && key === cabinetKey) return;
     if (cabinet) {
       scene.remove(cabinet);
@@ -562,7 +562,7 @@ export function createScene(THREE, canvas) {
     tex.anisotropy = 4;
     face.material.map = tex;
     face.material.needsUpdate = true;
-    prizePanel.position.z = (field ? field.zBack : -10) - 3.5;
+    prizePanel.position.z = -10 - 3.5;   // 決まった位置（移動範囲を変えても動かない）
   }
 
   return {

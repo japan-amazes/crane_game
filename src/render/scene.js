@@ -522,6 +522,7 @@ export function createScene(THREE, canvas) {
 
   // 景品パネル：板の後ろ（移動範囲の奥より後ろ）に立てる。絵は呼び出し側が canvas で渡す
   let prizePanel = null;
+  let badgeOn = false;
   function setPrizePanel(canvas, field) {
     if (!prizePanel) {
       const W = 30, H = 28;   // 台の奥の壁全体を覆う大きさ
@@ -532,6 +533,17 @@ export function createScene(THREE, canvas) {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ toneMapped: false }));
       prizePanel.add(back, face);
       prizePanel.userData.face = face;
+      // 「未獲得!!」のシール：左上の角から少しはみ出して、少し斜めに貼る（未獲得の景品のときだけ表示）
+      const bw = 10, bh = bw * 466 / 512;   // 画像（512×466）と同じ縦横比
+      const badgeTex = new THREE.TextureLoader().load('./assets/badge_unowned.webp');
+      badgeTex.colorSpace = THREE.SRGBColorSpace;
+      const badge = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh),
+        new THREE.MeshBasicMaterial({ map: badgeTex, transparent: true, alphaTest: 0.1, toneMapped: false }));
+      badge.position.set(-W / 2 - 2.7 + bw / 2, H / 2 + 3.2 - bh / 2, 0.3);
+      badge.rotation.z = 12 * Math.PI / 180;
+      badge.visible = badgeOn;
+      prizePanel.add(badge);
+      prizePanel.userData.badge = badge;
       prizePanel.position.y = H / 2 + 0.4;
       scene.add(prizePanel);
     }
@@ -548,6 +560,8 @@ export function createScene(THREE, canvas) {
   return {
     setRound,
     setPrizePanel,
+    // 景品パネルの「未獲得!!」シールを出す／消す
+    setPrizeBadge(on) { badgeOn = on; if (prizePanel) prizePanel.userData.badge.visible = on; },
     setPrizeBoxArt(art) { prizeBoxArt = art; },
     setTheme,
     savePrev,

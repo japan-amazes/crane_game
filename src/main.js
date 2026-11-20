@@ -271,7 +271,7 @@ async function boot() {
       } catch { /* 保存できない環境 */ }
       location.reload();
     },
-    { dev: DEV_MODE, stageName: () => `STAGE ${progress.stage + 1}`, isTraining: () => training, setTraining: on => { training = on; if (round) { setStatus(); showStageLabel(); } } });
+    { dev: DEV_MODE, stageName: () => `STAGE ${progress.stage + 1}`, isTraining: () => training, setTraining: on => { training = on; updatePrizeBadge(); if (round) { setStatus(); showStageLabel(); } } });
   // 「特訓」ボタン：全コンプリートで開放（開発中は常に表示）
   const btnDebug = document.getElementById('btnDebug');
   // 開放されてまだ押していないときは、光らせて「NEW」を付ける
@@ -322,6 +322,11 @@ async function boot() {
     prize = prizeMod.drawPrize(stageStars(stages, progress.stage), Math.random, filter);
     view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
     view.setPrizeBoxArt(prizeBoxArt(prize));
+    updatePrizeBadge();
+  }
+  // 「未獲得!!」シール：今の景品がマイボックスにまだ無いときだけ（特訓モードでは出さない）
+  function updatePrizeBadge() {
+    view.setPrizeBadge(!!prize && !training && progress.count(prize.id) === 0);
   }
   // 景品の箱（幅5×高さ7）の正面の絵：上の帯にカテゴリーと★、真ん中に景品、下に名前
   function prizeBoxArt(it) {
@@ -339,6 +344,13 @@ async function boot() {
     g.fillText(it.name, W / 2, H - 35, W - 16);
     return { front: c, side: cat.color };
   }
+  // 文字が maxW に収まるまでフォントを小さくする（最初は size px）
+  function fitFont(g, text, size, weight, family, maxW) {
+    for (let px = size; px >= 24; px -= 2) {
+      g.font = `${weight} ${px}px ${family}`;
+      if (g.measureText(text).width <= maxW) return;
+    }
+  }
   // パネル（横30cm×縦28cm）と同じ縦横比の絵：上の帯にカテゴリーと★、真ん中に大きく景品、下に景品名
   function prizePanelCanvas(it) {
     if (theme === 'cool') return prizePanelCool(it);
@@ -351,9 +363,13 @@ async function boot() {
     grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, cat.color);
     g.fillStyle = grad; g.fillRect(0, 0, W, H);
     g.fillStyle = cat.color; g.fillRect(0, 0, W, 90);
-    g.fillStyle = '#fff'; g.font = 'bold 52px sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
-    g.fillText(cat.name, 30, 47);
+    g.fillStyle = '#fff'; g.font = 'bold 52px sans-serif'; g.textBaseline = 'middle';
+    // カテゴリー名は中央（左上は「未獲得!!」シールの場所）。右の★にかかるときは文字を小さくする
+    const starsL = W - 26 - g.measureText('★'.repeat(it.rarity)).width;
     g.textAlign = 'right'; g.fillStyle = '#ffd166'; g.fillText('★'.repeat(it.rarity), W - 26, 47);
+    g.fillStyle = '#fff'; g.textAlign = 'center';
+    fitFont(g, cat.name, 52, 'bold', 'sans-serif', 2 * (starsL - 16 - W / 2));
+    g.fillText(cat.name, W / 2, 47);
     const pic = 600;
     g.save(); g.translate((W - pic) / 2, 100); prizeMod.paintPrize(g, it, pic); g.restore();
     // 商品名：ポップな丸ゴシック（M PLUS Rounded 1c 極太）、白とカテゴリー色の二重のふち取り＋影
@@ -392,8 +408,12 @@ async function boot() {
     g.strokeRect(14, 14, W - 28, H - 28); g.restore();
     // 上の見出し
     g.font = `800 50px ${PANEL_FONT}, sans-serif`; g.textBaseline = 'middle';
-    g.fillStyle = '#9fdcff'; g.textAlign = 'left'; g.fillText(`// ${cat.name} //`, 50, 78);
+    // カテゴリー名は中央（左上は「未獲得!!」シールの場所）。右の★にかかるときは文字を小さくする
+    const starsL = W - 46 - g.measureText('★'.repeat(it.rarity)).width;
     g.textAlign = 'right'; g.fillStyle = '#5fd0ff'; g.fillText('★'.repeat(it.rarity), W - 46, 78);
+    g.fillStyle = '#9fdcff'; g.textAlign = 'center';
+    fitFont(g, `// ${cat.name} //`, 50, '800', `${PANEL_FONT}, sans-serif`, 2 * (starsL - 16 - W / 2));
+    g.fillText(`// ${cat.name} //`, W / 2, 78);
     const pic = 560;
     g.save(); g.translate((W - pic) / 2, 120); prizeMod.paintPrize(g, it, pic); g.restore();
     g.textAlign = 'center';
@@ -626,6 +646,7 @@ async function boot() {
       else if (round.result === 'win') {
         const played = progress.stage;
         const got = progress.addPrize(prize.id);
+        updatePrizeBadge();
         const { wrapped } = progress.clearStage();
         lastWin = { played, item: prize, ...got, wrapped };
       } else lastWin = null;

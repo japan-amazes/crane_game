@@ -316,10 +316,17 @@ async function boot() {
   let prize = null;
   let pendingFilter = null;   // 獲得の結果画面で使った景品の券：次のステージの景品に使う
   // filter：選べる景品をしぼる（カテゴリー指定券・未所持確定券）
+  // 券を使っていなければ、このステージで保存してある景品を出す（再起動やスキップしてから戻っても変わらない）
   function newPrize(filter) {
     if (!filter && pendingFilter) filter = pendingFilter;
     pendingFilter = null;
-    prize = prizeMod.drawPrize(stageStars(stages, progress.stage), Math.random, filter);
+    const stars = stageStars(stages, progress.stage);
+    const kept = !filter && prizeMod.findItem(progress.savedPrize());
+    if (kept && kept.rarity === stars) prize = kept;
+    else {
+      prize = prizeMod.drawPrize(stars, Math.random, filter);
+      progress.setPrize(prize.id);
+    }
     view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
     view.setPrizeBoxArt(prizeBoxArt(prize));
     updatePrizeBadge();
@@ -649,6 +656,7 @@ async function boot() {
       else if (round.result === 'win') {
         const played = progress.stage;
         const got = progress.addPrize(prize.id);
+        progress.setPrize(null);   // 獲得したら、このステージの保存は消す（選び直したら新しく引く）
         updatePrizeBadge();
         const { wrapped } = progress.clearStage();
         lastWin = { played, item: prize, ...got, wrapped };

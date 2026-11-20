@@ -34,7 +34,8 @@ export function createProgress(stageTotal) {
     trainingUnlocked: false,   // 全コンプリートで特訓モードが開放される
     credits: DAILY_CREDITS,
     creditDay: today(),
-    regenAt: Date.now()   // 時間の回復を数え始めた時刻
+    regenAt: Date.now(),  // 時間の回復を数え始めた時刻
+    prizes: {}            // ステージ番号 → 出ている景品ID（再起動やスキップのあとで戻っても同じ景品を出す。獲得したら消す）
   };
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -56,6 +57,7 @@ export function createProgress(stageTotal) {
   }
 
   if (!Number.isFinite(st.regenAt)) st.regenAt = Date.now();
+  if (!st.prizes || typeof st.prizes !== 'object') st.prizes = {};
   // 前の版の確定チケットは、カードパックに置き換える
   if (st.tickets) { st.packs += st.tickets; }
   delete st.tickets;
@@ -109,6 +111,10 @@ export function createProgress(stageTotal) {
       return out;
     },
     count(id) { return st.box[id] || 0; },
+
+    // ---- 今出ている景品（再起動で引き直せないように保存しておく）----
+    savedPrize() { return st.prizes[st.stage] || null; },
+    setPrize(id) { if (id) st.prizes[st.stage] = id; else delete st.prizes[st.stage]; save(); },
 
     // ---- ステージ ----
     goStage(i) { st.stage = clamp(i); st.frontier = Math.max(st.frontier, st.stage); save(); },

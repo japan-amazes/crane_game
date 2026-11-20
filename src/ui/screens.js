@@ -57,11 +57,11 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
         <div class="m-cat-title">${cat.name}　${have}/9 ${done ? '<span class="m-done">コンプリート！</span>' : ''}</div>
         <div class="m-bar"><i style="width:${have / 9 * 100}%"></i></div>
         <div class="m-grid">${cat.items.map(it => {
-          const n = progress.count(it.id);
+          const n = progress.count(it.id);   // 未獲得（0）は画像を出さず、名前も「？？？」で伏せる
           return `<div class="m-cell ${n ? 'got' : ''}" data-item="${it.id}">
             <div class="m-star">${stars(it.rarity)}</div>
             <div class="m-pic"></div>
-            <div class="m-name">${it.name}</div>
+            <div class="m-name">${n ? it.name : '？？？'}</div>
             ${n > 1 ? `<div class="m-num">×${n}</div>` : ''}
           </div>`;
         }).join('')}</div>

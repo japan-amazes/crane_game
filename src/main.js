@@ -569,7 +569,7 @@ async function boot() {
   try { const m = localStorage.getItem(CAM_KEY); if (CAM_MODES.includes(m)) camMode = m; } catch { /* 保存できない環境 */ }
   const ZOOM_DELAY = 1.0;   // 下降が始まってから拡大に切り替えるまで（秒）
   const ZOOM_MOVE = 0.8;    // 切り替えにかける時間（秒）
-  const UNZOOM_DELAY = 1.0; // 上昇が始まってから正面へ戻すまで（秒）
+  const UNZOOM_DELAY = 1.5; // 上昇が始まってから正面へ戻すまで（秒）
   let zoomAt = null;        // 拡大に切り替える予定時刻（performance.now の値）
   let zoomed = false;
   let unzoomAt = null;      // 正面へ戻す予定時刻

@@ -1,0 +1,16 @@
+{
+  "name": "hook-king-app",
+  "private": true,
+  "description": "フック王のアプリ版（Capacitor）。ゲーム本体はリポジトリのいちばん上のファイルをそのまま使う",
+  "scripts": {
+    "copy-web": "node scripts/copy-web.mjs",
+    "sync": "npm run copy-web && npx cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}

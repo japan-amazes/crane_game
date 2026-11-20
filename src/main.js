@@ -24,9 +24,10 @@ import { celebrate } from './ui/celebrate.js';
 // 開発中：特訓ボタンを常に表示し、テスト用の項目（クレジット無制限など）を出す。完成版では false にする
 const DEV_MODE = true;
 
+// 3D表示（Three.js 0.187.0）と物理（Rapier 0.21.0）は vendor/ に同梱（電波がなくても起動できるように）
 const LIB = {
-  three: 'https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js',
-  rapier: 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/+esm'
+  three: '../vendor/three/three.module.js',
+  rapier: '../vendor/rapier/rapier.mjs'
 };
 
 // ---------------------------------------------------------------

@@ -1,0 +1,40 @@
+# =============================================================
+# Codemagic のビルド設定（フック王 iPhone版）
+# アプリの中身は app/（Capacitor）。ゲーム本体はリポジトリのいちばん上のファイルをコピーして使う
+# =============================================================
+workflows:
+  # 署名なしのIPA：Windows の Sideloadly で、自分の Apple ID で署名して iPhone に入れる用（開発者登録前のテスト）
+  ios-unsigned:
+    name: iPhone版（署名なし・Sideloadly用）
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: latest
+      node: 22
+    scripts:
+      - name: ゲーム本体をアプリにコピー
+        script: |
+          cd app
+          npm ci
+          npm run sync
+      - name: 署名なしでビルド
+        script: |
+          set -o pipefail
+          xcodebuild \
+            -project app/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/derived \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tee /tmp/xcodebuild.log
+      - name: IPAにまとめる
+        script: |
+          mkdir -p build/ipa/Payload
+          cp -R build/derived/Build/Products/Release-iphoneos/App.app build/ipa/Payload/
+          cd build/ipa
+          zip -qr HookKing-unsigned.ipa Payload
+    artifacts:
+      - build/ipa/*.ipa
+      - /tmp/xcodebuild.log

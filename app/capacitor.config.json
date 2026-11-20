@@ -1,0 +1,8 @@
+{
+  "appId": "com.japanamazes.hookking",
+  "appName": "フック王",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never"
+  }
+}

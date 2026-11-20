@@ -97,11 +97,23 @@ export function createPrizeShelf(RAPIER, world, preset, machine, side) {
       y: A.y + (B.y - A.y) * u - sag * 4 * u * (1 - u),
       z: A.z + (B.z - A.z) * u
     });
+    // 板の上にあるところは、板の上面より下にもぐらないようにする（板の上を這って、ふちで垂れ下がる）
+    const bt = boardBody.translation(), bq = boardBody.rotation();
+    const inv = { x: -bq.x, y: -bq.y, z: -bq.z, w: bq.w };
+    const topY = b.height / 2 + S.linkWire * 2;
+    const ptRaw = pt;
+    const ptOnBoard = u => {
+      const p = ptRaw(u);
+      const l = rotateVec(inv, { x: p.x - bt.x, y: p.y - bt.y, z: p.z - bt.z });
+      if (Math.abs(l.x) > b.width / 2 || Math.abs(l.z) > b.depth / 2 || l.y >= topY) return p;
+      const w = rotateVec(bq, { x: l.x, y: topY, z: l.z });
+      return { x: bt.x + w.x, y: bt.y + w.y, z: bt.z + w.z };
+    };
     const nUse = Math.min(nMax, Math.max(nBase, Math.ceil(d / PITCH)));
     for (let i = 0; i < nMax; i++) {
       const k = Math.min(i, nUse - 1);
       const u0 = k / nUse, u1 = (k + 1) / nUse;
-      const p0 = pt(u0), p1 = pt(u1);
+      const p0 = ptOnBoard(u0), p1 = ptOnBoard(u1);
       links[i].st.t = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2, z: (p0.z + p1.z) / 2 };
       const dir = { x: p1.x - p0.x, y: p1.y - p0.y, z: p1.z - p0.z };
       const len = Math.hypot(dir.x, dir.y, dir.z) || 1;

@@ -50,9 +50,11 @@
   #ticker { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; overflow: hidden; pointer-events: none;
     background: linear-gradient(90deg, #ff3f8ecc, #ff7ab8cc, #ff3f8ecc); border-top: 2px solid #ffd1e8; }
   #ticker[hidden] { display: none; }
-  #ticker span { position: absolute; top: 50%; left: 100%; white-space: nowrap; transform: translateY(-50%);
-    font-size: 14px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #0006; animation: ticker 9s linear infinite; }
-  @keyframes ticker { from { left: 100%; transform: translate(0, -50%); } to { left: 0; transform: translate(-100%, -50%); } }
+  /* 文字の左に帯の幅ぶんの余白を付け、横にずらすだけで流す（位置を計算し直さないので、iPhoneでも1周の切れ目でちらつかない） */
+  #ticker span { display: inline-block; padding-left: 100%; white-space: nowrap; line-height: 24px;
+    font-size: 14px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #0006;
+    will-change: transform; animation: ticker 9s linear infinite; }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-100%); } }
   #status { position: absolute; left: 0; right: 0; top: 0;
     padding: calc(8px + var(--sat)) calc(12px + var(--sar)) 12px calc(12px + var(--sal));
     font-size: 14px; color: #fff; text-shadow: 0 1px 3px #3a1460;

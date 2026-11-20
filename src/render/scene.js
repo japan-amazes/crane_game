@@ -1,7 +1,7 @@
 // =============================================================
 // 3D描画（Three.js）
 // 物理側が返す visual（body ＋ 部品リスト）から形を作り、毎フレーム位置を写す
-// カメラ：正面（front）/ フック付近の拡大（zoom）
+// カメラ：正面（front）/ フック付近の斜めからの拡大（zoom）/ 正面の向きのままフック付近を拡大（zoomFront）
 // =============================================================
 
 import * as cabinetMod from './cabinet.js';
@@ -376,7 +376,15 @@ export function createScene(THREE, canvas) {
       };
     }
     const d = Math.max(40, fit(30, 50), fitH(top * 1.35, 50));
-    return { fov: 50, pos: new THREE.Vector3(0, top * 0.6, d), look: new THREE.Vector3(0, top * 0.5, 0) };
+    const front = { fov: 50, pos: new THREE.Vector3(0, top * 0.6, d), look: new THREE.Vector3(0, top * 0.5, 0) };
+    if (name === 'zoomFront') {
+      // 正面ズーム：正面と同じ向き・角度のまま、フック付近へ寄る（見える幅は斜めズームと同じ）
+      const dir = front.look.clone().sub(front.pos).normalize();
+      const look = new THREE.Vector3(h.x, h.y + 1.5, h.z);
+      const dz = Math.max(16, fit(11, 40));
+      return { fov: 40, pos: look.clone().addScaledVector(dir, -dz), look };
+    }
+    return front;
   }
 
   // 今のカメラの状態（切り替えの途中もここを基準にする）

@@ -561,10 +561,12 @@ async function boot() {
   let last = performance.now();
 
   // ---- カメラモード ----
-  // normal：ずっと正面 / zoom：移動中は正面、下降が始まったらフック付近の拡大に切り替え、上昇が始まったら正面へ戻す
+  // normal：ずっと正面 / front（正面ズーム）・zoom（斜めズーム）：移動中は正面、下降が始まったらフック付近の拡大に切り替え、
+  //   上昇が始まったら正面へ戻す。front は正面と同じ向きのまま拡大、zoom は斜めから拡大
   const CAM_KEY = 'crane.cameraMode.v1';
+  const CAM_MODES = ['normal', 'front', 'zoom'];
   let camMode = 'normal';
-  try { camMode = localStorage.getItem(CAM_KEY) === 'zoom' ? 'zoom' : 'normal'; } catch { /* 保存できない環境 */ }
+  try { const m = localStorage.getItem(CAM_KEY); if (CAM_MODES.includes(m)) camMode = m; } catch { /* 保存できない環境 */ }
   const ZOOM_DELAY = 1.0;   // 下降が始まってから拡大に切り替えるまで（秒）
   const ZOOM_MOVE = 0.8;    // 切り替えにかける時間（秒）
   const UNZOOM_DELAY = 1.0; // 上昇が始まってから正面へ戻すまで（秒）
@@ -572,21 +574,21 @@ async function boot() {
   let zoomed = false;
   let unzoomAt = null;      // 正面へ戻す予定時刻
   function applyCamera(duration = 0) {
-    const zoomNow = camMode === 'zoom' && zoomed;
-    view.setView(zoomNow ? 'zoom' : 'front', duration);
+    const zoomNow = camMode !== 'normal' && zoomed;
+    view.setView(!zoomNow ? 'front' : camMode === 'front' ? 'zoomFront' : 'zoom', duration);
     document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('active', b.dataset.cam === camMode));
   }
-  // 確認用ズーム：①を押す前だけ、斜めからフック（口の向き）を見られる
+  // 確認用ズーム：①を押す前だけ、筐体の画面を押している間、斜めからフック（口の向き）を見られる。離すと戻る
   let peek = false;
   function setPeek(on) {
+    if (peek === on) return;
     peek = on;
-    btnPeek.classList.toggle('active', on);
     if (on) view.setView('zoom', 0.5); else applyCamera(0.5);
   }
   function setCamMode(mode) {
     camMode = mode;
     try { localStorage.setItem(CAM_KEY, mode); } catch { /* 保存できない環境 */ }
-    if (peek) { peek = false; btnPeek.classList.remove('active'); }
+    peek = false;
     applyCamera(0.5);
   }
 
@@ -607,7 +609,7 @@ async function boot() {
     zoomAt = null;
     unzoomAt = null;
     zoomed = false;
-    if (peek) { peek = false; btnPeek.classList.remove('active'); }
+    peek = false;
     applyCamera();
   }
 
@@ -681,7 +683,7 @@ async function boot() {
     status.textContent = msg;
     btnX.disabled = !(ph === PHASE.READY || ph === PHASE.MOVE_X);
     btnZ.disabled = !(ph === PHASE.WAIT_Z || ph === PHASE.STOP_X || ph === PHASE.MOVE_Z);
-    btnPeek.disabled = ph !== PHASE.READY;
+    ticker.hidden = ph !== PHASE.READY;   // 下の帯は①を押す前だけ
     if (peek && ph !== PHASE.READY) setPeek(false);
     showHud();
   }
@@ -689,8 +691,16 @@ async function boot() {
   // ---- 入力（ボタン＋キーボード）----
   const btnX = document.getElementById('btnX');
   const btnZ = document.getElementById('btnZ');
-  const btnPeek = document.getElementById('btnPeek');
-  btnPeek.addEventListener('click', () => { if (!btnPeek.disabled) setPeek(!peek); });
+  // 筐体の画面を押している間だけ確認用ズーム（①を押す前だけ）
+  const viewEl = document.getElementById('view');
+  const ticker = document.getElementById('ticker');
+  viewEl.addEventListener('pointerdown', e => {
+    if (round.arm.phase !== PHASE.READY || !resultEl.hidden) return;
+    try { viewEl.setPointerCapture(e.pointerId); } catch { /* 取れない環境 */ }
+    setPeek(true);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) viewEl.addEventListener(ev, () => setPeek(false));
+  viewEl.addEventListener('contextmenu', e => e.preventDefault());
   document.getElementById('btnShop').addEventListener('click', () => screens.showShop());
   document.getElementById('btnBox').addEventListener('click', () => screens.showBox());
   document.getElementById('btnStages').addEventListener('click', () => screens.showStages());
@@ -707,7 +717,7 @@ async function boot() {
     if (screens.isOpen) return;
     if (e.key === '1' || e.key === 'ArrowRight') pressX(true);
     if (e.key === '2' || e.key === 'ArrowUp') round.arm.setInput('z', true);
-    if (e.key === '3' || e.key === ' ') { setCamMode(camMode === 'zoom' ? 'normal' : 'zoom'); e.preventDefault(); }
+    if (e.key === '3' || e.key === ' ') { setCamMode(CAM_MODES[(CAM_MODES.indexOf(camMode) + 1) % CAM_MODES.length]); e.preventDefault(); }
   });
   window.addEventListener('keyup', e => {
     if (e.key === '1' || e.key === 'ArrowRight') round.arm.setInput('x', false);
@@ -799,7 +809,7 @@ async function boot() {
     if (zoomAt !== null && now >= zoomAt) {
       zoomAt = null;
       zoomed = true;
-      if (camMode === 'zoom') applyCamera(ZOOM_MOVE);
+      if (camMode !== 'normal') applyCamera(ZOOM_MOVE);
     }
     // 上昇開始から UNZOOM_DELAY 秒たったら正面へ戻す
     if (unzoomAt !== null && now >= unzoomAt) {
@@ -807,7 +817,7 @@ async function boot() {
       zoomAt = null;
       if (zoomed) {
         zoomed = false;
-        if (camMode === 'zoom') applyCamera(ZOOM_MOVE);
+        if (camMode !== 'normal') applyCamera(ZOOM_MOVE);
       }
     }
     view.setGuide(debug.guide);

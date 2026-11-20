@@ -44,7 +44,15 @@
   /* 筐体の画面は全機種で横4：縦5に固定（カメラと枠の見え方を同じにするため）。
      縦の残りはボタン側へ。画面が短い機種では筐体の画面を縮めて、左右を黒塗りにする */
   #stage { position: relative; flex: 0 1 125vw; min-height: 0; background: #000; }
-  #view { height: 100%; aspect-ratio: 4 / 5; width: auto; max-width: 100%; margin: 0 auto; display: block; touch-action: none; }
+  #view { height: 100%; aspect-ratio: 4 / 5; width: auto; max-width: 100%; margin: 0 auto; display: block; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  /* 下の帯：右から左へ文字を流し続ける（押しても下の画面に届くように、帯自体は押せない） */
+  #ticker { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; overflow: hidden; pointer-events: none;
+    background: linear-gradient(90deg, #ff3f8ecc, #ff7ab8cc, #ff3f8ecc); border-top: 2px solid #ffd1e8; }
+  #ticker[hidden] { display: none; }
+  #ticker span { position: absolute; top: 50%; left: 100%; white-space: nowrap; transform: translateY(-50%);
+    font-size: 14px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #0006; animation: ticker 9s linear infinite; }
+  @keyframes ticker { from { left: 100%; transform: translate(0, -50%); } to { left: 0; transform: translate(-100%, -50%); } }
   #status { position: absolute; left: 0; right: 0; top: 0;
     padding: calc(8px + var(--sat)) calc(12px + var(--sar)) 12px calc(12px + var(--sal));
     font-size: 14px; color: #fff; text-shadow: 0 1px 3px #3a1460;
@@ -114,7 +122,7 @@
   .views button { flex: 1; }
   .views button.active { background: linear-gradient(#ff7ab8, #ff3f8e); border-color: var(--gold);
     box-shadow: inset 0 2px 0 #ffffff66, 0 3px 0 #a3185a, 0 0 10px #ffd34d99; }
-  .views #btnPeek.active { background: linear-gradient(#ffe27a, #f6b51e); color: #5a2a00; border-color: #fff3b8; }
+  
   .views button:disabled { opacity: 0.45; }
 
   .main { display: flex; gap: 10px; }
@@ -402,7 +410,8 @@
     box-shadow: inset 0 2px 0 #ffffff55, 0 3px 0 #06275f, 0 0 12px #2fb8ff99; }
   body.theme-cool .views button.active { background: linear-gradient(#1f3f6e, #0d1a33); border-color: #5fd0ff;
     box-shadow: inset 0 1px 0 #ffffff33, 0 0 12px #2fb8ffaa; }
-  body.theme-cool .views #btnPeek.active { background: linear-gradient(#e9eef5, #9aa6b8); color: #0b1220; border-color: #fff; }
+  body.theme-cool #ticker { background: linear-gradient(90deg, #0d2a5acc, #1f5fb0cc, #0d2a5acc); border-top-color: #5fd0ff; }
+  body.theme-cool #ticker span { color: #e6f6ff; text-shadow: 0 0 6px #2fb8ff; }
   body.theme-cool .hold { color: #8e99ab; border-color: #4a5466; background: linear-gradient(#2a313d, #12161e); box-shadow: inset 0 2px 0 #ffffff22, 0 5px 0 #000; }
   body.theme-cool .hold:not(:disabled) { color: #fff; border-color: #9fe3ff;
     background: linear-gradient(#2f9cff, #0a4fc0); box-shadow: inset 0 3px 0 #ffffff55, 0 5px 0 #06275f, 0 0 16px #2fb8ffaa; }
@@ -444,12 +453,14 @@
     <button id="btnDebug">⚙ 特訓</button>
     <div id="hud"></div>
     <div id="result" hidden></div>
+    <!-- 筐体の画面のいちばん下の帯：文字を流す（①を押す前だけ表示） -->
+    <div id="ticker"><span>※※ 画面タップでフックを確認出来ます　※※</span></div>
   </div>
   <div id="controls">
     <div class="views">
       <button data-cam="normal" class="active">ノーマル</button>
-      <button data-cam="zoom">ズーム</button>
-      <button id="btnPeek">確認</button>
+      <button data-cam="front">正面ズーム</button>
+      <button data-cam="zoom">斜めズーム</button>
     </div>
     <div class="main">
       <button id="btnX" class="hold">①</button>

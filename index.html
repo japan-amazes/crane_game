@@ -163,7 +163,9 @@
   .m-head .m-pt b { color: var(--gold); font-size: 16px; }
   .m-x { margin-left: auto; font-size: 18px; padding: 2px 12px; }
   .m-pt + .m-x { margin-left: 0; }
-  .m-tabs { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 10px; }
+  /* 横にだけスクロール（縦にはずれない）。下の余白はボタンの影が切れないため */
+  .m-tabs { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; overscroll-behavior: contain;
+    padding-bottom: 5px; margin-bottom: 5px; }
   .m-tabs button { flex: 0 0 auto; font-size: 12px; padding: 6px 10px; border-color: var(--cat); border-radius: 14px; }
   .m-tabs button small { display: block; font-size: 11px; }
   .m-tabs button.on { background: var(--cat); color: #2a1040; }

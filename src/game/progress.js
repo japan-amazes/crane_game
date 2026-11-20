@@ -71,20 +71,32 @@ export function createProgress(stageTotal) {
   //   10より少ないときは、6分ごとに1ずつ回復（閉じていた間の分もまとめて）。10以上のときは回復しない
   //   （強化が効いている間は、上限15・4分ごと）
   //   日付が変わっていたら、1日1回の分を足す（残りはそのまま持ち越す）
+  //   閉じていた間に強化が切れていたら、切れた時刻で区切って計算する
+  //   （切れる前は強化の上限・間隔で回復し、そこまでに貯まった分は切れたあとも減らない）
   function refreshCredits() {
     let changed = false;
     const d = today(), now = Date.now();
-    const max = regenMax(), ms = regenMs();
-    if (st.credits >= max) {
-      if (st.regenAt !== now) { st.regenAt = now; changed = true; }   // 満タンの間は数え始めない
-    } else {
-      const n = Math.floor((now - st.regenAt) / ms);
-      if (n > 0) {
-        st.credits = Math.min(max, st.credits + n);
-        st.regenAt = st.credits >= max ? now : st.regenAt + n * ms;
-        changed = true;
+    const start = st.regenAt, startCredits = st.credits;
+    const ends = [st.boosts.regenMax, st.boosts.regenFast]
+      .filter(t => Number.isFinite(t) && t > start && t < now).sort((a, b) => a - b);
+    ends.push(now);
+    let pos = start, segStart = start;
+    for (const end of ends) {
+      // この区間の上限・間隔（区間の始めに強化が効いていたか）
+      const max = (st.boosts.regenMax || 0) > segStart ? BOOST_REGEN_MAX : REGEN_MAX;
+      const ms = (st.boosts.regenFast || 0) > segStart ? BOOST_REGEN_MS : REGEN_MS;
+      if (st.credits >= max) pos = end;   // 満タンの間は数え始めない
+      else {
+        const n = Math.floor((end - pos) / ms);
+        if (n > 0) {
+          st.credits = Math.min(max, st.credits + n);
+          pos = st.credits >= max ? end : pos + n * ms;
+        }
       }
+      segStart = end;
     }
+    if (pos !== start || st.credits !== startCredits) { st.regenAt = pos; changed = true; }
+    const max = regenMax();
     // 1日1回の分は、時間の回復のあとに足す（閉じていた間の回復を先に済ませる）
     if (st.creditDay !== d) { st.creditDay = d; st.credits += DAILY_CREDITS; changed = true; if (st.credits >= max) st.regenAt = now; }
     if (changed) save();

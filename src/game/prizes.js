@@ -87,8 +87,9 @@ const ROUND1 = [
 
 // ---- ラウンド2 ----
 // 画像ができるまでは仮の絵（箱に品名。shape: 'tbd'）。c はカテゴリーの色
+// opt.panel：パネル用の画像（品名入り）。筐体の景品パネルに画像をそのまま大きく出す（下の品名は出さない）
 function tbd(color, list) {
-  return list.map(([id, name, rarity]) => ({ id, name, rarity, shape: 'tbd', c: color, c2: '#ffffff' }));
+  return list.map(([id, name, rarity, opt = {}]) => ({ id, name, rarity, shape: 'tbd', c: color, c2: '#ffffff', ...opt }));
 }
 const ROUND2 = [
   {
@@ -106,9 +107,9 @@ const ROUND2 = [
     items: tbd('#b39dff', [
       ['eggs', '卵（10個入り×2パック）', 1], ['hamburg', '冷凍ハンバーグ', 1],
       ['cheesecake', 'チーズケーキ', 2], ['gateau', 'ガトーショコラ', 2],
-      ['porkbelly', '豚バラ肉', 3], ['yakitori', '焼き鳥', 3],
-      ['unagi', '冷凍ウナギ', 4], ['gyutan', '牛タン', 4],
-      ['steak', 'アンガス牛ステーキ', 5]
+      ['porkbelly', '豚バラ肉', 3, { panel: true }], ['yakitori', '焼き鳥', 3],
+      ['unagi', '冷凍ウナギ', 4, { panel: true }], ['gyutan', '牛タン', 4, { panel: true }],
+      ['steak', 'アンガス牛ステーキ', 5, { panel: true }]
     ])
   },
   {

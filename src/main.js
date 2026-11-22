@@ -386,6 +386,12 @@ async function boot() {
     g.fillStyle = '#fff'; g.textAlign = 'center';
     fitFont(g, cat.name, 52, 'bold', 'sans-serif', 2 * (starsL - 16 - W / 2));
     g.fillText(cat.name, W / 2, 47);
+    // パネル用の画像の品：画像をそのまま大きく出す（画像に品名が書いてあるので、下の品名は出さない）
+    if (it.panel) {
+      const big = H - 100;
+      g.save(); g.translate((W - big) / 2, 95); prizeMod.paintPrize(g, it, big); g.restore();
+      return c;
+    }
     const pic = 600;
     g.save(); g.translate((W - pic) / 2, 100); prizeMod.paintPrize(g, it, pic); g.restore();
     // 商品名：ポップな丸ゴシック（M PLUS Rounded 1c 極太）、白とカテゴリー色の二重のふち取り＋影
@@ -430,6 +436,12 @@ async function boot() {
     g.fillStyle = '#9fdcff'; g.textAlign = 'center';
     fitFont(g, `// ${cat.name} //`, 50, '800', `${PANEL_FONT}, sans-serif`, 2 * (starsL - 16 - W / 2));
     g.fillText(`// ${cat.name} //`, W / 2, 78);
+    // パネル用の画像の品：画像をそのまま大きく出す（下の品名は出さない）
+    if (it.panel) {
+      const big = H - 150;
+      g.save(); g.translate((W - big) / 2, 118); prizeMod.paintPrize(g, it, big); g.restore();
+      return c;
+    }
     const pic = 560;
     g.save(); g.translate((W - pic) / 2, 120); prizeMod.paintPrize(g, it, pic); g.restore();
     g.textAlign = 'center';

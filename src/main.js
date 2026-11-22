@@ -11,11 +11,19 @@ import { createHookMachine } from './machines/hook.js';
 import { createPrizeShelf, shelfHole, SHELF } from './machines/prizeShelf.js';
 import { applyChainRatio } from './game/chainRange.js';
 import { celebrate } from './ui/celebrate.js';
+import { startTitleMusic } from './audio/titleMusic.js';
 
 // トップ画面：START を押したらフェードして消す（ゲームの準備は後ろで進める）
+// トップ画面の曲は START で小さくして止め、ゲームのBGMはそのあとから始める（titleDone）
+let titleDoneResolve;
+const titleDone = new Promise(ok => { titleDoneResolve = ok; });
 {
   const title = document.getElementById('title');
-  document.getElementById('btnStart').addEventListener('click', () => {
+  const btnStart = document.getElementById('btnStart');
+  const titleMusic = startTitleMusic(title, btnStart);
+  btnStart.addEventListener('click', () => {
+    titleMusic.stop();
+    titleDoneResolve();
     title.classList.add('out');
     setTimeout(() => title.remove(), 500);
   });
@@ -551,7 +559,7 @@ async function boot() {
 
   // ---- 音（BGM・効果音）----
   const sound = soundMod.createSound();
-  sound.loadBgm('./assets/music/bgm.json');
+  titleDone.then(() => sound.loadBgm('./assets/music/bgm.json'));   // ゲームのBGMはトップ画面を閉じてから
   const btnBgm = document.getElementById('btnBgm');
   const btnSfx = document.getElementById('btnSfx');
   function showSoundButtons() {

@@ -1,6 +1,6 @@
 // =============================================================
 // 景品の一覧と抽選・絵
-// 5カテゴリー×9品。★1〜★5（各カテゴリーで★1〜★4が2品ずつ、★5が1品）
+// ラウンドごとに 5カテゴリー×9品。★1〜★5（各カテゴリーで★1〜★4が2品ずつ、★5が1品）
 // 景品はステージの★レベル（ステージ1＝★1 … ステージ5＝★5、6でまた★1）の品からランダムに選ぶ
 // 絵は画像ファイルを使わず、canvas にプログラムで描く（paintPrize → prizeArt.js）
 // 商品名は一般名だけ（実在のブランド名は使わない）
@@ -11,7 +11,8 @@ export const MAX_STARS = 5;
 export const DUP_POINTS = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };   // ダブりでもらえるポイント（★の数）。アイテム交換所で使う
 
 // shape：絵の形 / c：主な色 / c2：差し色 / label：絵の中のラベル文字
-export const CATEGORIES = [
+// ---- ラウンド1 ----
+const ROUND1 = [
   {
     id: 'sweets', name: 'お菓子', color: '#ff8fb1',
     items: [
@@ -84,13 +85,89 @@ export const CATEGORIES = [
   }
 ];
 
-export const ALL_ITEMS = CATEGORIES.flatMap(cat => cat.items.map(it => ({ ...it, cat: cat.id, catName: cat.name })));
-export function findItem(id) { return ALL_ITEMS.find(it => it.id === id); }
+// ---- ラウンド2 ----
+// 画像ができるまでは仮の絵（箱に品名。shape: 'tbd'）。c はカテゴリーの色
+function tbd(color, list) {
+  return list.map(([id, name, rarity]) => ({ id, name, rarity, shape: 'tbd', c: color, c2: '#ffffff' }));
+}
+const ROUND2 = [
+  {
+    id: 'goods2', name: '生活雑貨', color: '#7fb8ff',
+    items: tbd('#7fb8ff', [
+      ['wipes', '除菌シート', 1], ['bathsalt', '入浴剤', 1],
+      ['deodorant', '消臭剤', 2], ['softener', '柔軟剤', 2],
+      ['shampoo', 'シャンプー＆コンディショナー', 3], ['slippers', 'フック王スリッパ', 3],
+      ['bathmat', 'フック王バスマット', 4], ['cushion', 'フック王クッション', 4],
+      ['wallclock', 'フック王壁掛け時計', 5]
+    ])
+  },
+  {
+    id: 'chilled2', name: '冷凍・冷蔵食品', color: '#b39dff',
+    items: tbd('#b39dff', [
+      ['eggs', '卵（10個入り×2パック）', 1], ['hamburg', '冷凍ハンバーグ', 1],
+      ['cheesecake', 'チーズケーキ', 2], ['gateau', 'ガトーショコラ', 2],
+      ['porkbelly', '豚バラ肉', 3], ['yakitori', '焼き鳥', 3],
+      ['unagi', '冷凍ウナギ', 4], ['gyutan', '牛タン', 4],
+      ['steak', 'アンガス牛ステーキ', 5]
+    ])
+  },
+  {
+    id: 'instant', name: 'カップ麺・インスタント', color: '#ffb347',
+    items: tbd('#ffb347', [
+      ['cupsoup', 'カップスープ', 1], ['misosoup', 'インスタント味噌汁', 1],
+      ['cupudon', 'カップうどん・そば', 2], ['cupramen', 'カップラーメン', 2],
+      ['curry', 'レトルトカレー', 3], ['yakisoba', 'カップ焼そば', 3],
+      ['curryhigh', '高級レトルトカレー', 4], ['stew', 'レトルトビーフシチュー', 4],
+      ['emergency', '災害用非常食セット', 5]
+    ])
+  },
+  {
+    id: 'seasoning', name: '調味料', color: '#ff7f6e',
+    items: tbd('#ff7f6e', [
+      ['soysauce', '醤油', 1], ['dressing', 'ドレッシング', 1],
+      ['yakinikusauce', '焼肉のタレ', 2], ['nabesoup', '鍋のスープ', 2],
+      ['ketchup', 'ケチャップ', 3], ['mayo', 'マヨネーズ', 3],
+      ['sesameoil', 'ごま油', 4], ['saladoil', 'サラダ油', 4],
+      ['oliveoil', '高級オリーブオイル', 5]
+    ])
+  },
+  {
+    id: 'kitchen', name: 'キッチン用品', color: '#ffd166',
+    items: tbd('#ffd166', [
+      ['wrap', 'ラップ', 1], ['storagebag', '保存袋', 1],
+      ['kpaper', 'キッチンペーパー', 2], ['tupper', 'タッパー', 2],
+      ['dishsoap', '食器用洗剤', 3], ['donabe', 'ミニ土鍋', 3],
+      ['hkmug', 'フック王マグカップ', 4], ['lunchbox', 'フック王ランチボックス', 4],
+      ['apron', 'フック王エプロン', 5]
+    ])
+  }
+];
 
-// 抽選：指定した★の品の中から等確率
+// ラウンドの一覧。ROUND_SOON 番目以降は「準備中」（選べない）
+export const ROUNDS = [ROUND1, ROUND2];
+export const ROUND_SOON = 3;   // 選ぶ画面に「ラウンド3（準備中）」として出す
+
+// 今のラウンドのカテゴリー・品（setRound で切り替える）
+export let ROUND = 0;
+export let CATEGORIES = ROUNDS[0];
+export let ITEMS = [];
+function withCat(cats) { return cats.flatMap(cat => cat.items.map(it => ({ ...it, cat: cat.id, catName: cat.name }))); }
+export function setRound(i) {
+  ROUND = Math.min(Math.max(0, Number(i) || 0), ROUNDS.length - 1);
+  CATEGORIES = ROUNDS[ROUND];
+  ITEMS = withCat(CATEGORIES);
+}
+setRound(0);
+
+// すべてのラウンドの品（保存してある景品IDを探すとき・フォントの読み込み用）
+export const ALL_ITEMS = ROUNDS.flatMap(withCat);
+export function findItem(id) { return ALL_ITEMS.find(it => it.id === id); }
+export function findCategory(id) { return ROUNDS.flat().find(c => c.id === id); }
+
+// 抽選：今のラウンドの、指定した★の品の中から等確率
 // filter：さらにしぼる条件（カテゴリー指定券・未所持確定券）。しぼって1つもなければ★だけで選ぶ
 export function drawPrize(stars, rand = Math.random, filter = null) {
-  let pool = ALL_ITEMS.filter(it => it.rarity === stars);
+  let pool = ITEMS.filter(it => it.rarity === stars);
   if (filter && pool.some(filter)) pool = pool.filter(filter);
   return pool[Math.floor(rand() * pool.length)];
 }

@@ -2,7 +2,7 @@
 // 遊びの記録（スマホの中に保存）
 // ステージの進み具合・クリア済み・コレクション・ポイント・アイテム・カードパック・クレジット
 // =============================================================
-import { CATEGORIES, findItem, DUP_POINTS } from './prizes.js';
+import { CATEGORIES, ROUNDS, setRound, findItem, DUP_POINTS } from './prizes.js';
 import { findItemDef, drawCard, PACK_CARDS, BOOST_MS } from './items.js';
 
 const KEY = 'crane.progress.v1';
@@ -30,8 +30,11 @@ export function createProgress(stageTotal) {
     packs: 0,          // まだ開けていないカードパック
     retryArmed: false, // リトライ券を使用中（次にはずれたらクレジットが戻る）
     completed: [],     // コンプリート済みのカテゴリーID（ごほうびは1回だけ）
-    lap: 0,            // コレクションの周回（全コンプリートで1増えて、コレクションは空に戻る）
+    lap: 0,            // 全コンプリートした回数
     trainingUnlocked: false,   // 全コンプリートで特訓モードが開放される
+    round: 0,          // 今のラウンド（0始まり。0＝ラウンド1）
+    roundsDone: [],    // 全コンプリートしたことのあるラウンド
+    roundPick: false,  // 次のラウンドを選ぶ画面を出す（選ぶ前に閉じても、次に開いたときに出す）
     credits: DAILY_CREDITS,
     creditDay: today(),
     regenAt: Date.now(),  // 時間の回復を数え始めた時刻
@@ -56,6 +59,11 @@ export function createProgress(stageTotal) {
     try { localStorage.setItem(KEY, JSON.stringify(st)); } catch { /* 保存できない環境 */ }
   }
 
+  // ラウンド（前の版で全コンプリート済みならラウンド2から）
+  if (!Number.isFinite(st.round)) st.round = st.lap > 0 ? 1 : 0;
+  st.round = Math.min(Math.max(0, st.round), ROUNDS.length - 1);
+  if (!Array.isArray(st.roundsDone)) st.roundsDone = [];
+  setRound(st.round);
   if (!Number.isFinite(st.regenAt)) st.regenAt = Date.now();
   if (!st.prizes || typeof st.prizes !== 'object') st.prizes = {};
   // 前の版の確定チケットは、カードパックに置き換える
@@ -224,8 +232,24 @@ export function createProgress(stageTotal) {
       return cards;
     },
 
+    // ---- ラウンド ----
+    get round() { return st.round; },
+    get roundPickPending() { return st.roundPick; },
+    // ラウンドを切り替える：マイボックスの景品を空にして、ステージに出ていた景品も引き直す
+    //   （ポイント・アイテム・カードパック・クレジット・ステージはそのまま）
+    startRound(i) {
+      st.round = Math.min(Math.max(0, Number(i) || 0), ROUNDS.length - 1);
+      setRound(st.round);
+      st.box = {};
+      st.completed = [];
+      st.prizes = {};
+      st.roundPick = false;
+      save();
+    },
+
     // ---- コレクション ----
-    // 獲得した景品を入れる。戻り値：{ isNew, points, completedCat, allComplete }
+    // 獲得した景品を入れる。戻り値：{ isNew, points, completedCat, allComplete, trainingNew, nextRound }
+    //   nextRound：自動で進んだラウンド（ラウンド1を初めてそろえたとき）。それ以外の全コンプリートは選ぶ画面（roundPickPending）
     addPrize(id) {
       const it = findItem(id);
       const had = st.box[id] || 0;
@@ -233,16 +257,20 @@ export function createProgress(stageTotal) {
       let points = 0;
       if (had > 0) { points = DUP_POINTS[it.rarity]; st.points += points; }
       const completedCat = checkComplete(it.cat);
-      // 全カテゴリーをコンプリート：特訓モードを開放して、コレクションだけ空にして次の周へ
+      // 全カテゴリーをコンプリート：特訓モードを開放して、次のラウンドへ
       const allComplete = !!completedCat && CATEGORIES.every(c => st.completed.includes(c.id));
+      let trainingNew = false, nextRound = null;
       if (allComplete) {
+        trainingNew = !st.trainingUnlocked;
         st.trainingUnlocked = true;
         st.lap++;
-        st.box = {};
-        st.completed = [];
+        if (!st.roundsDone.includes(st.round)) st.roundsDone.push(st.round);
+        // ラウンド2をまだそろえていなければ、ラウンド2へ自動で進む。そろえたことがあれば選ぶ画面
+        if (!st.roundsDone.includes(1)) { nextRound = 1; this.startRound(1); }
+        else st.roundPick = true;
       }
       save();
-      return { isNew: had === 0, points, completedCat, allComplete };
+      return { isNew: had === 0, points, completedCat, allComplete, trainingNew, nextRound };
     },
   };
 

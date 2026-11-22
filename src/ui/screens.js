@@ -1,8 +1,8 @@
 // =============================================================
-// ゲームの画面：マイボックス（景品・アイテム）・アイテム交換所・カードパック・ステージ一覧・広告（仮）
+// ゲームの画面：マイボックス（景品・アイテム）・アイテム交換所・カードパック・ステージ一覧・広告（仮）・ラウンドを選ぶ画面
 // どれも画面全体にかぶせる表示（モーダル）
 // =============================================================
-import { CATEGORIES, paintPrize, DUP_POINTS } from '../game/prizes.js';
+import { CATEGORIES, ROUND, ROUNDS, ROUND_SOON, paintPrize, DUP_POINTS } from '../game/prizes.js';
 import { ITEMS, PACK_CARDS, CARD_IMG, iconTag } from '../game/items.js';
 
 // canUseReady()：①を押す前か（プレイ中に使えないアイテムの判定）
@@ -79,6 +79,7 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
     return `
       <div class="m-head">
         <b>マイボックス</b>
+        <span class="m-round">ラウンド${ROUND + 1}</span>
         <span class="m-pt">ポイント <b>${progress.points}</b>pt</span>
         <button class="m-x" data-close>×</button>
       </div>
@@ -251,5 +252,22 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
     root.querySelector('[data-ad]').addEventListener('click', () => showAd(onDone));
   }
 
-  return { showBox, showShop, showStages, showAd, showNoCredit, close, prizeCanvas, get isOpen() { return !root.hidden; } };
+  // ---- 次のラウンドを選ぶ（全コンプリートのあと。選ぶまで閉じられない）----
+  // onPick(i)：選んだラウンド（0始まり）
+  function showRoundPick(onPick) {
+    const list = [];
+    for (let i = 0; i < Math.max(ROUNDS.length, ROUND_SOON); i++) list.push(i);
+    open(`
+      <div class="m-head"><b>次のラウンドの景品を選んで下さい</b></div>
+      <div class="m-rounds">${list.map(i => i < ROUNDS.length
+        ? `<button class="big" data-round="${i}">ラウンド${i + 1}</button>`
+        : `<button disabled>ラウンド${i + 1}（準備中）</button>`).join('')}</div>
+      <div class="m-note">マイボックスの景品は、選んだラウンド用に入れ替わります（ポイント・アイテムはそのまま）</div>`);
+    root.querySelectorAll('[data-round]').forEach(b => b.addEventListener('click', () => {
+      close();
+      onPick(Number(b.dataset.round));
+    }));
+  }
+
+  return { showBox, showShop, showStages, showAd, showNoCredit, showRoundPick, close, prizeCanvas, get isOpen() { return !root.hidden; } };
 }

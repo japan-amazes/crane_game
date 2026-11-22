@@ -94,6 +94,20 @@ function box3(ctx, x, y, w, h, d, c, top = null, side = null) {
 // 形ごとの絵
 // ---------------------------------------------------------------
 const ART = {
+  // ---- 仮の絵（画像ができるまで）：カテゴリーの色の箱に品名 ----
+  tbd(ctx, c, c2, it) {
+    shadow(ctx, 50, 90, 36, 5);
+    box3(ctx, 14, 30, 62, 56, 18, c);
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.fill(rrectP(18, 36, 54, 44, 4));
+    // 長い名前は2行に分ける
+    const name = it.name;
+    const lines = name.length > 6 ? [name.slice(0, Math.ceil(name.length / 2)), name.slice(Math.ceil(name.length / 2))] : [name];
+    const size = lines.length > 1 ? 11 : 13;
+    lines.forEach((s, i) => text(ctx, s, 45, 58 + (i - (lines.length - 1) / 2) * (size + 3), size, '#2a2233', null, 50));
+    streak(ctx, 18, 34, 5, 48, 0.25);
+  },
+
   // ---- お菓子 ----
   bag(ctx, c, c2, it) {
     shadow(ctx, 50, 91, 30, 5);

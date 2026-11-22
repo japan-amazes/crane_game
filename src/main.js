@@ -350,7 +350,7 @@ async function boot() {
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const g = c.getContext('2d');
-    const cat = prizeMod.CATEGORIES.find(x => x.id === it.cat);
+    const cat = prizeMod.findCategory(it.cat);
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
     g.fillStyle = cat.color; g.fillRect(0, 0, W, 50); g.fillRect(0, H - 70, W, 70);
     g.fillStyle = '#ffd166'; g.font = 'bold 30px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -374,7 +374,7 @@ async function boot() {
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const g = c.getContext('2d');
-    const cat = prizeMod.CATEGORIES.find(x => x.id === it.cat);
+    const cat = prizeMod.findCategory(it.cat);
     const grad = g.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, cat.color);
     g.fillStyle = grad; g.fillRect(0, 0, W, H);
@@ -405,7 +405,7 @@ async function boot() {
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const g = c.getContext('2d');
-    const cat = prizeMod.CATEGORIES.find(x => x.id === it.cat);
+    const cat = prizeMod.findCategory(it.cat);
     const bg = g.createRadialGradient(W / 2, H * 0.45, 50, W / 2, H / 2, W * 0.75);
     bg.addColorStop(0, '#123a7a'); bg.addColorStop(1, '#050d22');
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
@@ -511,7 +511,7 @@ async function boot() {
     if ((id === 'catPick' || id === 'newPick') && nextStage && pendingFilter) return { ok: false, msg: '次のステージ用の券はもう使っています' };
     if (id === 'catPick') {
       const filter = it => it.cat === arg;
-      if (!prizeMod.ALL_ITEMS.some(it => it.rarity === stars && filter(it))) return { ok: false, msg: 'そのカテゴリーにはこの★の景品がありません' };
+      if (!prizeMod.ITEMS.some(it => it.rarity === stars && filter(it))) return { ok: false, msg: 'そのカテゴリーにはこの★の景品がありません' };
       progress.useItem(id);
       if (nextStage) { pendingFilter = filter; return { ok: true, msg: 'カテゴリー指定券：次のステージの景品に使われます' }; }
       newPrize(filter);
@@ -519,7 +519,7 @@ async function boot() {
       return { ok: true, close: true };
     }
     if (id === 'newPick') {
-      const unowned = prizeMod.ALL_ITEMS.filter(it => it.rarity === stars && progress.count(it.id) === 0);
+      const unowned = prizeMod.ITEMS.filter(it => it.rarity === stars && progress.count(it.id) === 0);
       if (!unowned.length) return { ok: false, msg: `${nextStage ? '次のステージの' : 'この'}★の景品はすべて持っています` };
       progress.useItem(id);
       if (nextStage) { pendingFilter = it => progress.count(it.id) === 0; return { ok: true, msg: '未所持確定券：次のステージの景品に使われます' }; }
@@ -773,7 +773,7 @@ async function boot() {
         <div><b>${w.item.name}</b> <span class="stars">${'★'.repeat(w.item.rarity)}</span><br>
         ${w.isNew ? '<span class="res-new">NEW！ マイボックスに入りました</span>' : `ダブり：<b>＋${w.points}pt</b>`}
         ${w.completedCat ? `<br><span class="res-new">${w.completedCat.name} コンプリート！ カードパック＋1</span>` : ''}
-        ${w.allComplete ? `<br><span class="res-new">全コンプリート！ 特訓モードが開放されました（右上の「特訓」）。コレクションは${progress.lap + 1}周目に入ります</span>` : ''}</div>
+        ${w.allComplete ? `<br><span class="res-new">全コンプリート！${w.trainingNew ? ' 特訓モードが開放されました（右上の「特訓」）。' : ''}${w.nextRound != null ? `ラウンド${w.nextRound + 1}に進みます` : '次のラウンドの景品を選べます'}</span>` : ''}</div>
       </div>`;
     const refundRow = refunded ? '<div class="res-row res-new">🔁 リトライ券：クレジットが1戻りました</div>' : '';
     resultEl.innerHTML = `
@@ -792,17 +792,21 @@ async function boot() {
     if (w && w.completedCat) setTimeout(() => showComplete(w), 1300);   // 獲得の音のあとにお祝い
   }
 
-  // コンプリートのお祝い（全コンプリートなら特訓モードの開放も）
+  // コンプリートのお祝い（全コンプリートなら特訓モードの開放・次のラウンドへ）
   const PACK_ICON = '<img class="cel-pack" src="./assets/items/card_pack.webp" alt="">';
   function showComplete(w) {
     const pack = { icon: PACK_ICON, title: 'カードパック ×1', text: `${w.completedCat.name}のコンプリート報酬。マイボックスの「アイテム」から開けられます` };
     if (w.allComplete) {
       sound.sfx('grand');
+      const rewards = [pack];
+      if (w.trainingNew) rewards.push({ icon: '🎯', title: '特訓モード 開放', text: '右上の「特訓」ボタンから、好きな設定で遊べます' });
       celebrate({
         kind: 'grand', theme, label: 'ALL CATEGORIES', title: 'COMPLETE', sub: '全コンプリート おめでとう！',
-        rewards: [pack, { icon: '🎯', title: '特訓モード 開放', text: '右上の「特訓」ボタンから、好きな設定で遊べます' }],
-        note: `コレクションは${progress.lap + 1}周目に入ります（ポイント・アイテムはそのまま）`,
-        onClose: showTrainingButton
+        rewards,
+        note: w.nextRound != null
+          ? `ラウンド${w.nextRound + 1}に進みます（ポイント・アイテムはそのまま）`
+          : '次のラウンドの景品を選べます（ポイント・アイテムはそのまま）',
+        onClose: () => { showTrainingButton(); if (progress.roundPickPending) showRoundPick(); }
       });
       return;
     }
@@ -811,6 +815,15 @@ async function boot() {
     celebrate({
       kind: 'cat', theme, label: w.completedCat.name, title: 'COMPLETE', sub: `${w.completedCat.name} コンプリート！`,
       rewards: [pack], note: `全コンプリートまで あと${prizeMod.CATEGORIES.length - done}カテゴリー`
+    });
+  }
+
+  // 次のラウンドを選ぶ画面（選ぶまで閉じられない）。選んだらマイボックスはそのラウンド用になり、景品を引き直す
+  function showRoundPick() {
+    screens.showRoundPick(i => {
+      progress.startRound(i);
+      newPrize();
+      updatePrizeBadge();
     });
   }
 
@@ -848,6 +861,7 @@ async function boot() {
   }
 
   restart(false);
+  if (progress.roundPickPending) showRoundPick();   // 選ぶ前にアプリを閉じていたとき
   requestAnimationFrame(frame);
 }
 

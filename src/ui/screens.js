@@ -229,8 +229,8 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
       <div class="m-ad">ここに広告が表示されます<div class="m-ad-t">${t}</div></div>`);
     const tEl = root.querySelector('.m-ad-t');
     const finish = () => {
-      progress.addCredit(AD_CREDITS);
-      root.querySelector('.m-ad').innerHTML = `<b>＋${AD_CREDITS} クレジット</b><button class="big" data-close>OK</button>`;
+      const added = progress.addCredit(AD_CREDITS);   // 上限（10、回復上限アップ中は15）まで
+      root.querySelector('.m-ad').innerHTML = `<b>＋${added} クレジット</b><button class="big" data-close>OK</button>`;
       root.querySelector('[data-close]').addEventListener('click', () => { close(); if (onDone) onDone(); });
     };
     if (t <= 0) { finish(); return; }
@@ -246,8 +246,8 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
   function showNoCredit(onDone) {
     open(`
       <div class="m-head"><b>クレジットがありません</b><button class="m-x" data-close>×</button></div>
-      <div class="m-sum">6分ごとに1クレジット回復します（${progress.regenMax}まで）。広告を見ると${AD_CREDITS}クレジット追加できます</div>
-      <button class="big" data-ad>広告を見て ＋${AD_CREDITS} クレジット</button>`);
+      <div class="m-sum">6分ごとに1クレジット回復します（${progress.regenMax}まで）。広告を見ると${progress.regenMax}クレジットまで追加できます</div>
+      <button class="big" data-ad>広告を見て ＋${Math.min(AD_CREDITS, progress.regenMax)} クレジット</button>`);
     root.querySelector('[data-ad]').addEventListener('click', () => showAd(onDone));
   }
 

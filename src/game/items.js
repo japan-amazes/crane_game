@@ -11,7 +11,7 @@ export const BOOST_MS = 24 * 60 * 60 * 1000;   // 強化カードの効く時間
 
 export const ITEMS = [
   { id: 'credit10', name: 'クレジット＋10', card: ['クレジット', '＋10'], icon: '🪙', price: 20, when: 'any',
-    desc: 'クレジットが10増えます' },
+    desc: 'クレジットが0のときに使うと、10増えます' },
   { id: 'skip', name: 'ステージスキップ券', card: ['ステージ', 'スキップ券'], icon: '⏭', price: 10, when: 'ready',
     desc: '今のステージを飛ばして、次のステージへ進みます（クリアにはなりません）' },
   { id: 'retry', name: 'リトライ券', card: ['リトライ券'], icon: '🔁', price: 10, when: 'ready',

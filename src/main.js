@@ -535,10 +535,13 @@ async function boot() {
       goStage(progress.stage);
       return { ok: true, close: true };
     }
+    // クレジット＋10：クレジットが0のときだけ使える（残っているときに使うと上限で切られて損をするので）
+    if (id === 'credit10' && progress.credits > 0) return { ok: false, msg: 'クレジットが0のときだけ使えます' };
+    const before = progress.credits;
     if (!progress.useItem(id)) return { ok: false, msg: '持っていません' };
     showHud();
     const msg = {
-      credit10: 'クレジットが10増えました',
+      credit10: `クレジットが${progress.credits - before}増えました`,
       retry: 'リトライ券を使いました。次にはずれたらクレジットが戻ります',
       regenMax: '回復上限アップ：24時間、上限が15になります',
       regenFast: '回復の速さアップ：24時間、4分ごとに回復します'

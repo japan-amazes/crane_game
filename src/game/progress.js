@@ -97,9 +97,16 @@ export function createProgress(stageTotal) {
     }
     if (pos !== start || st.credits !== startCredits) { st.regenAt = pos; changed = true; }
     const max = regenMax();
-    // 1日1回の分は、時間の回復のあとに足す（閉じていた間の回復を先に済ませる）
-    if (st.creditDay !== d) { st.creditDay = d; st.credits += DAILY_CREDITS; changed = true; if (st.credits >= max) st.regenAt = now; }
+    // 1日1回の分は、時間の回復のあとに足す（閉じていた間の回復を先に済ませる）。上限（10、回復上限アップ中は15）まで
+    if (st.creditDay !== d) { st.creditDay = d; capAdd(DAILY_CREDITS); changed = true; if (st.credits >= max) st.regenAt = now; }
     if (changed) save();
+  }
+  // クレジットを足す。どの足し方でも上限（10、回復上限アップ中は15）を超えない。
+  // すでに上限以上のときは増やさない（減らしもしない）。実際に増えた数を返す
+  function capAdd(n) {
+    const before = st.credits;
+    if (st.credits < regenMax()) st.credits = Math.min(regenMax(), st.credits + n);
+    return st.credits - before;
   }
   refreshCredits();
 
@@ -160,7 +167,9 @@ export function createProgress(stageTotal) {
       st.credits--; save();
       return true;
     },
-    addCredit(n = 1) { refreshCredits(); st.credits += n; save(); },
+    addCredit(n = 1) { refreshCredits(); const added = capAdd(n); save(); return added; },
+    // 上限に届いていて、足しても増えないとき true
+    get creditsFull() { refreshCredits(); return st.credits >= regenMax(); },
 
     // ---- アイテム ----
     itemCount(id) { return st.items[id] || 0; },
@@ -178,7 +187,7 @@ export function createProgress(stageTotal) {
       if (!(st.items[id] > 0)) return false;
       st.items[id]--;
       const def = findItemDef(id);
-      if (id === 'credit10') { refreshCredits(); st.credits += 10; }
+      if (id === 'credit10') { refreshCredits(); capAdd(10); }
       if (id === 'retry') st.retryArmed = true;
       if (def.boost) {
         refreshCredits();   // 切り替わる前の分の回復を済ませる
@@ -193,7 +202,7 @@ export function createProgress(stageTotal) {
     // はずれたとき：リトライ券を使用中なら、クレジットを1戻して券を使い切る
     refundRetry() {
       if (!st.retryArmed) return false;
-      st.retryArmed = false; st.credits++; save();
+      st.retryArmed = false; refreshCredits(); capAdd(1); save();
       return true;
     },
 

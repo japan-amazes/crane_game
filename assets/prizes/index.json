@@ -13,14 +13,12 @@
     "cookie",
     "detergent",
     "energy",
-    "fruitbasket",
     "grape",
     "gummy",
     "gyoza",
     "icecup",
     "icegift",
     "juiceset",
-    "melon",
     "milk",
     "onion",
     "orange",
@@ -90,6 +88,8 @@
     "momiji",
     "toothset",
     "bathtowel",
-    "humidifier"
+    "humidifier",
+    "peach",
+    "shine"
   ]
 }

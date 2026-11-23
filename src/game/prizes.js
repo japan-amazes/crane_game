@@ -51,8 +51,8 @@ const ROUND1 = [
       { id: 'apple', name: 'りんご', rarity: 3, shape: 'apple', c: '#d62828', c2: '#3cb043' },
       { id: 'banana', name: 'バナナ', rarity: 3, shape: 'banana', c: '#ffd93b', c2: '#7a5a1a' },
       { id: 'grape', name: 'ぶどう', rarity: 4, shape: 'grape', c: '#7b3fa0', c2: '#3cb043' },
-      { id: 'melon', name: 'メロン', rarity: 4, shape: 'melon', c: '#9ccf5a', c2: '#e8f5d0' },
-      { id: 'fruitbasket', name: 'フルーツ盛り合わせ', rarity: 5, shape: 'basket', c: '#c98a3f', c2: '#d62828' }
+      { id: 'peach', name: '桃', rarity: 4, shape: 'melon', c: '#ff9a8a', c2: '#ffe0d0' },
+      { id: 'shine', name: 'シャインマスカット', rarity: 5, shape: 'basket', c: '#b5d86a', c2: '#e8f5d0' }
     ]
   },
   {

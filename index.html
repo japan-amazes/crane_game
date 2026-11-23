@@ -462,7 +462,7 @@
   body.theme-royal .res-new, body.theme-royal .stars { color: #f3c64a; }
   body.theme-royal #controls { background: radial-gradient(ellipse at 50% 0%, #4a0a12, #22040a 80%); border-top: none; box-shadow: none; }
   body.theme-royal #controls::before { content: none; }
-  body.theme-royal #controls::after { height: 48px; opacity: 1; bottom: calc(4px + env(safe-area-inset-bottom));
+  body.theme-royal #controls::after { height: 48px; opacity: 1; bottom: calc(env(safe-area-inset-bottom) - 11px);
     background:
       url("./assets/crown.webp") center / auto 40px no-repeat,
       linear-gradient(90deg, transparent, #f6dc8e 18%, #b8862e 40%, transparent 40%, transparent 60%, #b8862e 60%, #f6dc8e 82%, transparent) center calc(70% - 3px) / 92% 2px no-repeat, linear-gradient(90deg, transparent, #f6dc8e 18%, #b8862e 40%, transparent 40%, transparent 60%, #b8862e 60%, #f6dc8e 82%, transparent) center calc(70% + 2px) / 92% 1px no-repeat; }

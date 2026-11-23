@@ -21,7 +21,9 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
   function showAlert(text) {
     const el = document.createElement('div');
     el.className = 'm-alert';
-    el.innerHTML = `<div class="m-alert-box"><p>${text}</p><button class="big" data-ok>OK</button></div>`;
+    // 長い文は句読点の位置で改行する（1文字だけ次の行に落ちないように）
+    const parts = text.match(/[^、。！？]+[、。！？]?/g) || [text];
+    el.innerHTML = `<div class="m-alert-box"><p>${parts.map(t => `<span>${t}</span>`).join('')}</p><button class="big" data-ok>OK</button></div>`;
     root.appendChild(el);
     el.querySelector('[data-ok]').addEventListener('click', () => el.remove());
   }

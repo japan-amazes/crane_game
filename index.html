@@ -164,9 +164,10 @@
   /* ---- モーダル（マイボックス・ステージ・広告） ---- */
   /* 小さなお知らせ（マイボックスなどの上に重ねる） */
   .m-alert { position: absolute; inset: 0; z-index: 5; background: #0008; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .m-alert-box { width: min(80vw, 300px); padding: 20px 18px 16px; border-radius: 18px; text-align: center;
+  .m-alert-box { width: min(88vw, 340px); padding: 20px 18px 16px; border-radius: 18px; text-align: center;
     background: var(--panel); border: 2px solid var(--gold); box-shadow: 0 10px 30px #0008; }
-  .m-alert-box p { margin: 0 0 16px; font-size: 15px; font-weight: 800; line-height: 1.6; color: #fff; }
+  .m-alert-box p { margin: 0 0 16px; font-size: 14px; font-weight: 800; line-height: 1.6; color: #fff; text-wrap: balance; }
+  .m-alert-box p span { display: inline-block; }   /* 句読点までのまとまりの途中では改行しない */
   .m-alert-box button { width: 100%; }
   #modal { position: fixed; inset: 0; z-index: 20; background: #1a0b2fb3; display: flex; align-items: center; justify-content: center; padding: 12px; }
   #modal[hidden] { display: none; }

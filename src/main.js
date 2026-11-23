@@ -429,10 +429,10 @@ async function boot() {
     return c;
   }
 
-  // ---- 見た目のテーマ（キュート／クール）----
+  // ---- 見た目のテーマ（デフォルト／キュート／クール）----
   // 画面（CSS の body のクラス）と、景品パネル・箱の絵を切り替える。選んだテーマは保存して次も使う
-  const THEME_KEY = 'crane.theme.v1';
-  let theme = 'royal';   // 初めて起動したときはフック王
+  const THEME_KEY = 'crane.theme.v2';   // v1 は起動のたびにキュートを保存していたので読まない（デフォルトから始める）
+  let theme = 'royal';   // 初めて起動したときはデフォルト（フック王の雰囲気）
   try { const t = localStorage.getItem(THEME_KEY); if (t === 'cool' || t === 'cute') theme = t; } catch { /* 保存できない環境 */ }
   function applyTheme(t, redraw) {
     theme = t;

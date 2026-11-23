@@ -330,6 +330,13 @@
   .cel-rt small { display: block; font-size: 12px; opacity: 0.85; line-height: 1.5; margin-top: 2px; font-weight: 500; }
   .cel-note { font-size: 12px; opacity: 0; margin-top: 14px; animation: cel-up 0.6s ease var(--d) forwards; color: #ffffffcc; }
   .cel-ok { width: 100%; margin-top: 18px; opacity: 0; animation: cel-up 0.6s ease var(--d) forwards; }
+  /* デフォルト（フック王）：えんじ色の背景、金色の文字、金色のふち */
+  .cel-royal .cel-bg { background: radial-gradient(120% 80% at 50% 38%, #8a1424d9 0%, #3a060cf0 55%, #1a0204f7 100%); }
+  .cel-royal .cel-label { color: #f6dc8e; }
+  .cel-royal .cel-title { background-image: linear-gradient(100deg, #fff2b8 0%, #e0ad3c 30%, #fffbe8 46%, #e0ad3c 54%, #b8862e 100%);
+    filter: drop-shadow(0 3px 0 #5a0a14) drop-shadow(0 0 18px #e0ad3c66); }
+  .cel-royal .cel-reward { border-color: #e0ad3c; background: linear-gradient(#ffffff14, #ffffff08); }
+  .cel-royal .cel-ic { background: linear-gradient(135deg, #f6dc8e, #b81c30); box-shadow: 0 0 16px #e0ad3c66; }
   @keyframes cel-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   /* 特訓ボタン：開放されてまだ押していないとき */
   #btnDebug.is-new { animation: btn-glow 1.6s ease-in-out infinite; }

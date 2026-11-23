@@ -7,11 +7,12 @@
 
 const PALETTE = {
   cute: ['#ff7eb6', '#ffd34d', '#ffffff', '#c9a7ff', '#ff4f9a', '#ffe9a8'],
-  cool: ['#5fd0ff', '#ffffff', '#2f7bff', '#bfe9ff', '#9aa6b8', '#00e0ff']
+  cool: ['#5fd0ff', '#ffffff', '#2f7bff', '#bfe9ff', '#9aa6b8', '#00e0ff'],
+  royal: ['#f6dc8e', '#e0ad3c', '#ffffff', '#c41e34', '#fff2b8', '#8a1424']   // デフォルト：金・赤・白
 };
 
 export function celebrate({ kind = 'cat', theme = 'cute', label = '', title = 'COMPLETE', sub = '', rewards = [], note = '', button = 'OK', onClose }) {
-  const th = theme === 'cool' ? 'cool' : 'cute';
+  const th = theme === 'cool' || theme === 'royal' ? theme : 'cute';
   const root = document.createElement('div');
   root.className = `cel cel-${kind} cel-${th}`;
   root.innerHTML = `

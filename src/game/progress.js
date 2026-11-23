@@ -103,7 +103,8 @@ export function createProgress(stageTotal) {
       }
       segStart = end;
     }
-    if (pos !== start || st.credits !== startCredits) { st.regenAt = pos; changed = true; }
+    // 満タンのままなら回復の時間は書き換えない（満タンの間に何度も保存しないため）。数え始めは、使って満タンでなくなったとき
+    if (st.credits !== startCredits || (pos !== start && st.credits < regenMax())) { st.regenAt = pos; changed = true; }
     const max = regenMax();
     // 1日1回の分は、時間の回復のあとに足す（閉じていた間の回復を先に済ませる）。上限（10、回復上限アップ中は15）まで
     if (st.creditDay !== d) { st.creditDay = d; capAdd(DAILY_CREDITS); changed = true; if (st.credits >= max) st.regenAt = now; }
@@ -172,6 +173,7 @@ export function createProgress(stageTotal) {
       if (unlimited) return true;
       refreshCredits();
       if (st.credits <= 0) return false;
+      if (st.credits >= regenMax()) st.regenAt = Date.now();   // 満タンから減ったときは、ここから回復を数える
       st.credits--; save();
       return true;
     },

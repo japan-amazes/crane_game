@@ -3,6 +3,8 @@
   "appName": "フック王",
   "webDir": "www",
   "ios": {
-    "contentInset": "never"
-  }
+    "contentInset": "always",
+    "backgroundColor": "#2a0508"
+  },
+  "backgroundColor": "#2a0508"
 }

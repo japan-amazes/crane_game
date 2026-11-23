@@ -42,8 +42,9 @@ const LIB = {
 // 1プレイ分の物理を組み立てる
 // ---------------------------------------------------------------
 export function buildRound(RAPIER, preset) {
-  // 景品の網と箱は、初期位置と反対側（左から始まる台なら右側）に置く。板とフックもその側へ少し寄せる
-  const side = preset.field.startSide === 'right' ? -1 : 1;
+  // 景品の網と箱は、初期位置と同じ側（左から始まる台なら左側）に置く。板とフックもその側へ少し寄せる
+  //   実機と同じく、リングの初期位置が取り出し口（床の穴）の真上になる
+  const side = preset.field.startSide === 'right' ? 1 : -1;
   preset = JSON.parse(JSON.stringify(preset));
   preset.board.posX = SHELF.boardX * side;
   const world = createWorld(RAPIER);

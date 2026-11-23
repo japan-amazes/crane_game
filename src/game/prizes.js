@@ -72,15 +72,15 @@ const ROUND1 = [
   {
     id: 'chilled', name: '冷凍・冷蔵食品', color: '#b39dff',
     items: [
-      { id: 'popsicle', name: 'アイスキャンディ', rarity: 1, shape: 'popsicle', c: '#5fd3e8', c2: '#d9a35b' },
       { id: 'yogurt', name: 'ヨーグルト', rarity: 1, shape: 'cup', c: '#ffffff', c2: '#ff8fb1' , label: 'ヨーグルト' },
-      { id: 'gyoza', name: '冷凍ギョーザ', rarity: 2, shape: 'gyoza', c: '#f3e3c3', c2: '#d9481c' },
-      { id: 'pudding', name: 'プリン', rarity: 2, shape: 'pudding', c: '#ffd166', c2: '#7a3f12' },
-      { id: 'pizza', name: '冷凍ピザ', rarity: 4, shape: 'pizza', c: '#f4c430', c2: '#d62828' },
-      { id: 'cheese', name: 'チーズ', rarity: 3, shape: 'cheese', c: '#ffd93b', c2: '#e0b020' },
+      { id: 'pudding', name: 'プリン', rarity: 1, shape: 'pudding', c: '#ffd166', c2: '#7a3f12' },
+      { id: 'cheese', name: 'チーズ', rarity: 2, shape: 'cheese', c: '#ffd93b', c2: '#e0b020' },
+      { id: 'pizza', name: '冷凍ピザ', rarity: 2, shape: 'pizza', c: '#f4c430', c2: '#d62828' },
       { id: 'icecup', name: 'カップアイス', rarity: 3, shape: 'cup', c: '#fff6e8', c2: '#6b3a1f' , label: 'バニラ' },
-      { id: 'shrimp', name: '冷凍エビ', rarity: 4, shape: 'shrimp', c: '#ff8a65', c2: '#ffffff' },
-      { id: 'icegift', name: '高級アイス詰め合わせ', rarity: 5, shape: 'gift', c: '#5fd3e8', c2: '#d4af37' }
+      { id: 'wiener', name: 'ウインナー', rarity: 3, shape: 'tbd', c: '#b39dff', c2: '#ffffff' },
+      { id: 'croquette', name: '冷凍コロッケ', rarity: 4, shape: 'tbd', c: '#b39dff', c2: '#ffffff' },
+      { id: 'friedrice', name: '冷凍チャーハン', rarity: 4, shape: 'tbd', c: '#b39dff', c2: '#ffffff' },
+      { id: 'shortcake', name: 'ショートケーキ', rarity: 5, shape: 'cake', c: '#fff6e8', c2: '#e8263c' }
     ]
   }
 ];

@@ -6,7 +6,7 @@ import { CATEGORIES, ROUND, ROUNDS, ROUND_SOON, paintPrize, DUP_POINTS } from '.
 import { ITEMS, PACK_CARDS, CARD_IMG, iconTag } from '../game/items.js';
 
 // canUseReady()：①を押す前か（プレイ中に使えないアイテムの判定）
-// onUseItem(id, arg)：アイテムを使う（ゲーム側で処理）。戻り値 { ok, msg }
+// onUseItem(id, arg)：アイテムを使う（ゲーム側で処理）。戻り値 { ok, msg, alert }（alert は小さな画面で出すお知らせ）
 // sfx(name, arg)：効果音を鳴らす
 export function createScreens({ progress, onPickStage, canUseReady, onUseItem, sfx = () => {} }) {
   const root = document.getElementById('modal');
@@ -17,6 +17,14 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
     root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', close));
   }
   function close() { root.hidden = true; root.innerHTML = ''; }
+  // 今の画面の上に小さなお知らせを重ねる（OK で閉じて、元の画面に戻る）
+  function showAlert(text) {
+    const el = document.createElement('div');
+    el.className = 'm-alert';
+    el.innerHTML = `<div class="m-alert-box"><p>${text}</p><button class="big" data-ok>OK</button></div>`;
+    root.appendChild(el);
+    el.querySelector('[data-ok]').addEventListener('click', () => el.remove());
+  }
 
   function stars(n, max = n) {
     return '<span class="stars">' + '★'.repeat(n) + '<span class="off">' + '★'.repeat(Math.max(0, max - n)) + '</span></span>';
@@ -129,6 +137,7 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
       const r = onUseItem(id);
       if (r && r.close) { close(); return; }
       showItems(r ? r.msg : '');
+      if (r && r.alert) showAlert(r.alert);
     }));
   }
 

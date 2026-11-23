@@ -508,7 +508,7 @@ async function boot() {
     }
     if (id === 'newPick') {
       const unowned = prizeMod.ITEMS.filter(it => it.rarity === stars && progress.count(it.id) === 0);
-      if (!unowned.length) return { ok: false, msg: `${nextStage ? '次のステージの' : 'この'}★の景品はすべて持っています` };
+      if (!unowned.length) return { ok: false, alert: 'このレベルに未所持の景品はありません' };
       progress.useItem(id);
       if (nextStage) { pendingFilter = it => progress.count(it.id) === 0; return { ok: true, msg: '未所持確定券：次のステージの景品に使われます' }; }
       // 今の景品と同じカテゴリーに未所持があれば、そちらを優先

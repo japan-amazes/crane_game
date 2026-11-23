@@ -32,13 +32,13 @@ const ROUND1 = [
     items: [
       { id: 'tissue', name: 'ティッシュ', rarity: 1, shape: 'tissue', c: '#8ec5ff', c2: '#ffffff' },
       { id: 'toilet', name: 'トイレットペーパー', rarity: 1, shape: 'roll', c: '#ffffff', c2: '#cfd8e3' },
-      { id: 'toothbrush', name: '歯ブラシ', rarity: 2, shape: 'toothbrush', c: '#3fa7ff', c2: '#ffffff' },
+      { id: 'toothset', name: '歯磨きセット', rarity: 2, shape: 'toothbrush', c: '#3fa7ff', c2: '#ffffff' },
       { id: 'detergent', name: '洗剤', rarity: 2, shape: 'detergent', c: '#2ecc71', c2: '#ffffff' },
-      { id: 'mug', name: 'マグカップ', rarity: 3, shape: 'mug', c: '#ff7a59', c2: '#ffffff' },
-      { id: 'towel', name: 'タオル', rarity: 3, shape: 'towel', c: '#ffd166', c2: '#ffffff' },
+      { id: 'bathtowel', name: 'バスタオル', rarity: 3, shape: 'towel', c: '#ff7a59', c2: '#ffffff' },
+      { id: 'towel', name: 'フェイスタオル', rarity: 3, shape: 'towel', c: '#ffd166', c2: '#ffffff' },
       { id: 'umbrella', name: '傘', rarity: 4, shape: 'umbrella', c: '#5b6cff', c2: '#2b2b2b' },
       { id: 'clock', name: '目覚まし時計', rarity: 4, shape: 'clock', c: '#e74c3c', c2: '#ffffff' },
-      { id: 'kettle', name: '電気ケトル', rarity: 5, shape: 'kettle', c: '#ecf0f1', c2: '#2c3e50' }
+      { id: 'humidifier', name: 'USB加湿器', rarity: 5, shape: 'kettle', c: '#ecf0f1', c2: '#2c3e50' }
     ]
   },
   {

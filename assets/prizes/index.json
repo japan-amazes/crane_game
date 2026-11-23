@@ -20,10 +20,8 @@
     "icecup",
     "icegift",
     "juiceset",
-    "kettle",
     "melon",
     "milk",
-    "mug",
     "onion",
     "orange",
     "pizza",
@@ -38,7 +36,6 @@
     "tissue",
     "toilet",
     "tomato",
-    "toothbrush",
     "towel",
     "umbrella",
     "water",
@@ -90,6 +87,9 @@
     "wipes",
     "yokan",
     "monaka",
-    "momiji"
+    "momiji",
+    "toothset",
+    "bathtowel",
+    "humidifier"
   ]
 }

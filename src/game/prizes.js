@@ -45,8 +45,8 @@ const ROUND1 = [
     id: 'produce', name: '野菜・果物', color: '#7ed957',
     items: [
       { id: 'carrot', name: 'にんじん', rarity: 1, shape: 'carrot', c: '#ff8c1a', c2: '#3cb043' },
-      { id: 'tomato', name: 'トマト', rarity: 2, shape: 'round', c: '#e8263c', c2: '#3cb043' },
       { id: 'onion', name: 'たまねぎ', rarity: 1, shape: 'onion', c: '#c98a3f', c2: '#8a5a2b' },
+      { id: 'tomato', name: 'トマト', rarity: 2, shape: 'round', c: '#e8263c', c2: '#3cb043' },
       { id: 'potato', name: 'じゃがいも', rarity: 2, shape: 'potato', c: '#c9a26b', c2: '#8a6a3f' },
       { id: 'apple', name: 'りんご', rarity: 3, shape: 'apple', c: '#d62828', c2: '#3cb043' },
       { id: 'banana', name: 'バナナ', rarity: 3, shape: 'banana', c: '#ffd93b', c2: '#7a5a1a' },

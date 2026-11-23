@@ -34,7 +34,8 @@ export function createScene(THREE, canvas) {
   scene.add(fill);
   const THEME_LIGHT = {
     cute: { sky: 0xfff0f8, ground: 0x6a3a5a, side: 0xff6fb0 },
-    cool: { sky: 0xe6f2ff, ground: 0x1a2a44, side: 0x3aa8ff }
+    cool: { sky: 0xe6f2ff, ground: 0x1a2a44, side: 0x3aa8ff },
+    royal: { sky: 0xfff3dc, ground: 0x5a1a10, side: 0xffc46a }
   };
   function applyThemeLight(th) {
     const c = THEME_LIGHT[th];
@@ -109,7 +110,7 @@ export function createScene(THREE, canvas) {
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
   }
-  const guideTex = { cute: guide.material.map, cool: laserCrossTexture() };
+  const guideTex = { cute: guide.material.map, royal: guide.material.map, cool: laserCrossTexture() };
 
   // メッキの写り込み用の周囲（画面には出さない）：暗い筐体の中に、照明の光る帯が並んでいるイメージ
   let chromeEnvTex = null;
@@ -513,7 +514,7 @@ export function createScene(THREE, canvas) {
   }
   // テーマを切り替える：背景・筐体・床
   function setTheme(t) {
-    theme = t === 'cool' ? 'cool' : 'cute';
+    theme = t === 'cool' || t === 'royal' ? t : 'cute';
     applyThemeLight(theme);
     scene.background = new THREE.Color(cabinetMod.backgroundColor(theme));
     guide.material.map = guideTex[theme];

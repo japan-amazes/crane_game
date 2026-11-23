@@ -371,6 +371,7 @@ async function boot() {
   // パネル（横30cm×縦28cm）と同じ縦横比の絵：上の帯にカテゴリーと★、真ん中に大きく景品、下に景品名
   function prizePanelCanvas(it) {
     if (theme === 'cool') return prizePanelCool(it);
+    const royal = theme === 'royal';   // フック王：えんじ色の帯に金色の文字、金色のふち
     const W = 900, H = 840;
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
@@ -379,12 +380,13 @@ async function boot() {
     const grad = g.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, cat.color);
     g.fillStyle = grad; g.fillRect(0, 0, W, H);
-    g.fillStyle = cat.color; g.fillRect(0, 0, W, 90);
+    g.fillStyle = royal ? '#5c0b16' : cat.color; g.fillRect(0, 0, W, 90);
+    if (royal) { g.strokeStyle = '#d9a53a'; g.lineWidth = 10; g.strokeRect(5, 5, W - 10, H - 10); g.fillStyle = '#d9a53a'; g.fillRect(0, 86, W, 6); }
     g.fillStyle = '#fff'; g.font = 'bold 52px sans-serif'; g.textBaseline = 'middle';
     // カテゴリー名は中央（左上は「未獲得!!」シールの場所）。右の★にかかるときは文字を小さくする
     const starsL = W - 26 - g.measureText('★'.repeat(it.rarity)).width;
-    g.textAlign = 'right'; g.fillStyle = '#ffd166'; g.fillText('★'.repeat(it.rarity), W - 26, 47);
-    g.fillStyle = '#fff'; g.textAlign = 'center';
+    g.textAlign = 'right'; g.fillStyle = royal ? '#f3c64a' : '#ffd166'; g.fillText('★'.repeat(it.rarity), W - 26, 47);
+    g.fillStyle = royal ? '#f6dc8e' : '#fff'; g.textAlign = 'center';
     fitFont(g, cat.name, 52, 'bold', 'sans-serif', 2 * (starsL - 16 - W / 2));
     g.fillText(cat.name, W / 2, 47);
     // 画像の余白を切り落として、カテゴリー帯の下いっぱいに出す（品名は出さない。マイボックスと結果画面で出す）
@@ -430,12 +432,13 @@ async function boot() {
   // ---- 見た目のテーマ（キュート／クール）----
   // 画面（CSS の body のクラス）と、景品パネル・箱の絵を切り替える。選んだテーマは保存して次も使う
   const THEME_KEY = 'crane.theme.v1';
-  let theme = 'cute';
-  try { if (localStorage.getItem(THEME_KEY) === 'cool') theme = 'cool'; } catch { /* 保存できない環境 */ }
+  let theme = 'royal';   // 初めて起動したときはフック王
+  try { const t = localStorage.getItem(THEME_KEY); if (t === 'cool' || t === 'cute') theme = t; } catch { /* 保存できない環境 */ }
   function applyTheme(t, redraw) {
     theme = t;
     document.body.classList.toggle('theme-cool', t === 'cool');
-    document.body.classList.toggle('theme-cute', t !== 'cool');
+    document.body.classList.toggle('theme-cute', t === 'cute');
+    document.body.classList.toggle('theme-royal', t === 'royal');
     for (const b of document.querySelectorAll('#themeToggle button')) b.classList.toggle('on', b.dataset.theme === t);
     try { localStorage.setItem(THEME_KEY, t); } catch { /* 保存できない環境 */ }
     view.setTheme(t);   // 背景・筐体・床

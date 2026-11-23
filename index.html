@@ -373,9 +373,10 @@
   .dbg-buttons button { font-size: 12px; padding: 4px 12px; }
 
   /* ---- テーマの切り替え（右上、「調整」の左） ---- */
-  #themeToggle { position: absolute; right: calc(98px + var(--sar)); top: calc(36px + var(--sat)); display: flex;
-    padding: 2px; border-radius: 999px; background: #2f1655cc; border: 1.5px solid #8a63d2; }
-  #themeToggle button { font-size: 11px; padding: 4px 8px; border: none; box-shadow: none; background: transparent; color: #cdb8f2; }
+  /* テーマの切り替え：ズームの切り替えと①②の間に、3つ並べる */
+  #themeToggle { display: flex; gap: 4px; margin: 0 0 8px; padding: 3px; border-radius: 999px;
+    border: 1px solid #ffffff33; background: #00000033; }
+  #themeToggle button { flex: 1; font-size: 12px; padding: 5px 8px; border: none; box-shadow: none; background: transparent; color: #cdb8f2; }
   #themeToggle button.on { background: linear-gradient(#ff7ab8, #ff3f8e); color: #fff; box-shadow: 0 0 6px #ff6fae99; }
 
   /* =========================================================
@@ -440,9 +441,62 @@
   body.theme-cool .dbg-row select { background: #161b24; border-color: #4a5466; }
   body.theme-cool .dbg-info { background: #161b24; }
   body.theme-cool .dbg-row { border-bottom-color: #1e2430; }
+
+  /* =========================================================
+     テーマ「フック王」（初めて起動したとき）：えんじ色と金色。トップ画面と同じ雰囲気
+     ========================================================= */
+  body.theme-royal {
+    --bg: #2a0508; --panel: #4a0a12; --line: #b8862e; --text: #ffffff; --sub: #f0d9a8;
+    --accent: #e0ad3c; --pink: #f3c64a; --gold: #f6dc8e;
+    background: radial-gradient(ellipse at 50% 30%, #5a0c16, #2a0508 70%);
+  }
+  body.theme-royal #stage { background: radial-gradient(ellipse at 50% 40%, #5a0c16, #2a0508 75%); }
+  body.theme-royal #status { text-shadow: 0 1px 2px #000; background: linear-gradient(#2a0508e6, transparent); }
+  body.theme-royal #stageLabel { color: #fff; background: linear-gradient(#5a0c16, #2a0508); border: 2px solid #e0ad3c;
+    border-radius: 999px; padding: 4px 34px 4px 16px; box-shadow: inset 0 1px 0 #ffffff33, 0 0 0 1px #5a3a10; }
+  body.theme-royal #stageLabel::after { color: #f3c64a; }
+  body.theme-royal #hud span { background: linear-gradient(#4a0a12ee, #22040aee); border: 2px solid #b8862e; color: #fff; }
+  body.theme-royal #result { background: linear-gradient(#4a0a12f2, #22040af2); border-color: #e0ad3c; box-shadow: 0 0 16px #e0ad3c55; }
+  body.theme-royal .res-title.win { color: #f6dc8e; text-shadow: 0 0 10px #e0ad3c; }
+  body.theme-royal .res-title.lose { color: #f0d9a8; }
+  body.theme-royal .res-new, body.theme-royal .stars { color: #f3c64a; }
+  body.theme-royal #controls { background: radial-gradient(ellipse at 50% 0%, #4a0a12, #22040a 80%); border-top: none; box-shadow: none; }
+  body.theme-royal #controls::before { content: none; }
+  body.theme-royal #controls::after { height: 48px; opacity: 1; bottom: calc(4px + env(safe-area-inset-bottom));
+    background:
+      url("./assets/crown.webp") center / auto 40px no-repeat,
+      linear-gradient(90deg, transparent, #f6dc8e 18%, #b8862e 40%, transparent 40%, transparent 60%, #b8862e 60%, #f6dc8e 82%, transparent) center calc(70% - 3px) / 92% 2px no-repeat, linear-gradient(90deg, transparent, #f6dc8e 18%, #b8862e 40%, transparent 40%, transparent 60%, #b8862e 60%, #f6dc8e 82%, transparent) center calc(70% + 2px) / 92% 1px no-repeat; }
+  body.theme-royal #stage::after { content: ''; position: absolute; left: 0; right: 0; top: calc(98px + var(--sat)); height: 44px; pointer-events: none;
+    background:
+      url("./assets/crown.webp") center / auto 40px no-repeat,
+      linear-gradient(90deg, transparent, #f6dc8e 18%, #b8862e 40%, transparent 40%, transparent 60%, #b8862e 60%, #f6dc8e 82%, transparent) center calc(70% - 3px) / 92% 2px no-repeat, linear-gradient(90deg, transparent, #f6dc8e 18%, #b8862e 40%, transparent 40%, transparent 60%, #b8862e 60%, #f6dc8e 82%, transparent) center calc(70% + 2px) / 92% 1px no-repeat; }
+  body.theme-royal button { border: 2px solid #b8862e; color: #fff; text-shadow: 0 1px 1px #000;
+    background: linear-gradient(#8a1424, #4a0810); box-shadow: inset 0 1px 0 #ffffff44, 0 3px 0 #1a0204; }
+  body.theme-royal button.big { border-color: #f3c64a; background: linear-gradient(#b81c30, #5c0a14);
+    box-shadow: inset 0 2px 0 #ffffff55, 0 3px 0 #1a0204, 0 0 10px #e0ad3c66; }
+  body.theme-royal .views button.active { color: #3a1a04; text-shadow: none; border-color: #fff2b8;
+    background: linear-gradient(#fff2b8, #e0ad3c 55%, #b8862e); box-shadow: inset 0 1px 0 #ffffff88, 0 3px 0 #5a3a10, 0 0 10px #e0ad3c88; }
+  body.theme-royal #ticker { background: linear-gradient(90deg, #2a0508cc, #5a0c16cc, #2a0508cc); border-top-color: #b8862e; }
+  body.theme-royal #ticker span { color: #fff; text-shadow: 0 1px 2px #000; }
+  body.theme-royal .hold { color: #8a5a4a; border-color: #6a3a1a; background: linear-gradient(#3a080e, #22040a); box-shadow: inset 0 2px 0 #ffffff11, 0 5px 0 #12020a; }
+  body.theme-royal .hold:not(:disabled) { color: #f6dc8e; border: 3px solid #e0ad3c;
+    background: linear-gradient(#c41e34, #6a0a16); box-shadow: inset 0 3px 0 #ffffff55, 0 5px 0 #1a0204, 0 0 14px #e0ad3c66; }
+  body.theme-royal #btnX:not(:disabled)::before, body.theme-royal #btnX:not(:disabled)::after,
+  body.theme-royal #btnZ:not(:disabled)::before, body.theme-royal #btnZ:not(:disabled)::after { color: #f3c64a; text-shadow: 0 1px 2px #000; }
+  body.theme-royal .hold.on { box-shadow: inset 0 3px 0 #ffffff55, 0 2px 0 #1a0204, 0 0 22px #f3c64a; }
+  body.theme-royal #themeToggle { background: #22040acc; border-color: #b8862e; }
+  body.theme-royal #themeToggle button { color: #f0d9a8; background: transparent; box-shadow: none; border: none; text-shadow: none; }
+  body.theme-royal #themeToggle button.on { background: linear-gradient(#c41e34, #6a0a16); color: #fff; box-shadow: 0 0 0 1px #e0ad3c; }
+  body.theme-royal #modal { background: #000a; }
+  body.theme-royal .m-card { background: linear-gradient(#4a0a12, #22040a); border-color: #e0ad3c; box-shadow: 0 0 20px #e0ad3c44; }
+  body.theme-royal .m-cell { background: #ffffff0d; border-color: #6a3a1a; }
+  body.theme-royal .m-cat { background: #ffffff08; }
+  body.theme-royal .m-mode button.on { color: #3a1a04; text-shadow: none; border-color: #fff2b8; background: linear-gradient(#fff2b8, #e0ad3c 55%, #b8862e); }
+  body.theme-royal .m-cell.got .m-name, body.theme-royal .m-num { color: #fff; }
+  body.theme-royal .m-msg, body.theme-royal .m-item-txt span { color: #f3c64a; }
 </style>
 </head>
-<body class="theme-cute">
+<body class="theme-royal">
 <!-- トップ画面：タイトルの絵と START。押すとゲーム画面へ -->
 <div id="title">
   <img class="tt-img" src="./assets/title.webp" alt="フック王">
@@ -453,7 +507,6 @@
     <canvas id="view"></canvas>
     <div id="status"></div>
     <div id="stageLabel"></div>
-    <div id="themeToggle"><button data-theme="cute">キュート</button><button data-theme="cool">クール</button></div>
     <button id="btnDebug">⚙ 特訓</button>
     <div id="hud"></div>
     <div id="result" hidden></div>
@@ -466,6 +519,8 @@
       <button data-cam="front">正面ズーム</button>
       <button data-cam="zoom">斜めズーム</button>
     </div>
+    <!-- 見た目のテーマの切り替え -->
+    <div id="themeToggle"><button data-theme="royal">デフォルト</button><button data-theme="cute">キュート</button><button data-theme="cool">クール</button></div>
     <div class="main">
       <button id="btnX" class="hold">①</button>
       <button id="btnZ" class="hold" disabled>②</button>

@@ -8,12 +8,10 @@
     "cheese",
     "chips",
     "choco",
-    "chocoset",
     "clock",
     "coffee",
     "cookie",
     "detergent",
-    "donut",
     "energy",
     "fruitbasket",
     "grape",
@@ -33,7 +31,6 @@
     "potato",
     "pudding",
     "senbei",
-    "shortcake",
     "shrimp",
     "soda",
     "sports",
@@ -90,6 +87,9 @@
     "softener",
     "deodorant",
     "bathsalt",
-    "wipes"
+    "wipes",
+    "yokan",
+    "monaka",
+    "momiji"
   ]
 }

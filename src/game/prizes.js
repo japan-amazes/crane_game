@@ -16,15 +16,15 @@ const ROUND1 = [
   {
     id: 'sweets', name: 'お菓子', color: '#ff8fb1',
     items: [
-      { id: 'chips', name: 'ポテトチップス', rarity: 1, shape: 'bag', c: '#f4c430', c2: '#d9481c' , label: 'ポテト' },
-      { id: 'choco', name: 'チョコレート', rarity: 2, shape: 'bar', c: '#6b3a1f', c2: '#c0392b' },
-      { id: 'cookie', name: 'クッキー', rarity: 2, shape: 'cookie', c: '#d9a35b', c2: '#5a3416' },
       { id: 'candy', name: 'キャンディ', rarity: 1, shape: 'candy', c: '#ff5e8a', c2: '#ffd1dc' },
-      { id: 'gummy', name: 'グミ', rarity: 3, shape: 'jar', c: '#ffffff', c2: '#ff6b6b' },
-      { id: 'senbei', name: 'せんべい', rarity: 3, shape: 'senbei', c: '#c98a3f', c2: '#1e3a1e' },
-      { id: 'donut', name: 'ドーナツ', rarity: 4, shape: 'donut', c: '#d9a35b', c2: '#ff8fb1' },
-      { id: 'shortcake', name: 'ショートケーキ', rarity: 4, shape: 'cake', c: '#fff6e8', c2: '#e8263c' },
-      { id: 'chocoset', name: '高級チョコ詰め合わせ', rarity: 5, shape: 'gift', c: '#3b1f12', c2: '#d4af37' }
+      { id: 'gummy', name: 'グミ', rarity: 1, shape: 'jar', c: '#ffffff', c2: '#ff6b6b' },
+      { id: 'chips', name: 'ポテトチップス', rarity: 2, shape: 'bag', c: '#f4c430', c2: '#d9481c' , label: 'ポテト' },
+      { id: 'senbei', name: 'せんべい', rarity: 2, shape: 'senbei', c: '#c98a3f', c2: '#1e3a1e' },
+      { id: 'choco', name: 'チョコレート', rarity: 3, shape: 'bar', c: '#6b3a1f', c2: '#c0392b' },
+      { id: 'cookie', name: 'クッキー', rarity: 3, shape: 'cookie', c: '#d9a35b', c2: '#5a3416' },
+      { id: 'momiji', name: 'もみじ饅頭', rarity: 4, shape: 'tbd', c: '#ff8fb1', c2: '#ffffff' },
+      { id: 'monaka', name: '最中', rarity: 4, shape: 'tbd', c: '#ff8fb1', c2: '#ffffff' },
+      { id: 'yokan', name: '高級羊羹', rarity: 5, shape: 'tbd', c: '#ff8fb1', c2: '#ffffff' }
     ]
   },
   {

@@ -153,7 +153,7 @@ export function buildRound(RAPIER, preset) {
   return round;
 }
 
-const PANEL_FONT = '"M PLUS Rounded 1c"';   // 景品パネルの商品名のフォント（index.html で読み込む）
+const PANEL_FONT = '"M PLUS Rounded 1c"';   // 景品パネルの文字のフォント（index.html で読み込む）
 
 // ステージの設定：基本設定に、各項目の値を重ねる
 // order が "random"：ステージ番号から決まるランダムで、各項目の値を選ぶ（同じステージはいつも同じ設定）
@@ -386,23 +386,8 @@ async function boot() {
     g.fillStyle = '#fff'; g.textAlign = 'center';
     fitFont(g, cat.name, 52, 'bold', 'sans-serif', 2 * (starsL - 16 - W / 2));
     g.fillText(cat.name, W / 2, 47);
-    // パネル用の画像の品：画像をそのまま大きく出す（画像に品名が書いてあるので、下の品名は出さない）
-    if (it.panel) {
-      const big = H - 100;
-      g.save(); g.translate((W - big) / 2, 95); prizeMod.paintPrize(g, it, big); g.restore();
-      return c;
-    }
-    const pic = 600;
-    g.save(); g.translate((W - pic) / 2, 100); prizeMod.paintPrize(g, it, pic); g.restore();
-    // 商品名：ポップな丸ゴシック（M PLUS Rounded 1c 極太）、白とカテゴリー色の二重のふち取り＋影
-    g.textAlign = 'center';
-    g.font = `800 76px ${PANEL_FONT}, sans-serif`;
-    g.lineJoin = 'round';
-    g.shadowColor = 'rgba(0,0,0,0.35)'; g.shadowOffsetY = 6; g.shadowBlur = 6;
-    g.lineWidth = 18; g.strokeStyle = '#ffffff'; g.strokeText(it.name, W / 2, H - 72, W - 60);
-    g.shadowColor = 'transparent';
-    g.lineWidth = 8; g.strokeStyle = cat.color; g.strokeText(it.name, W / 2, H - 72, W - 60);
-    g.fillStyle = '#e8344e'; g.fillText(it.name, W / 2, H - 72, W - 60);
+    // 画像の余白を切り落として、カテゴリー帯の下いっぱいに出す（品名は出さない。マイボックスと結果画面で出す）
+    prizeMod.paintPrizeFit(g, it, 30, 105, W - 60, H - 125);
     return c;
   }
   // クールの景品パネル：紺色の六角形（ハニカム）模様、青く光るふち、白い商品名に青いふち取り
@@ -436,21 +421,8 @@ async function boot() {
     g.fillStyle = '#9fdcff'; g.textAlign = 'center';
     fitFont(g, `// ${cat.name} //`, 50, '800', `${PANEL_FONT}, sans-serif`, 2 * (starsL - 16 - W / 2));
     g.fillText(`// ${cat.name} //`, W / 2, 78);
-    // パネル用の画像の品：画像をそのまま大きく出す（下の品名は出さない）
-    if (it.panel) {
-      const big = H - 150;
-      g.save(); g.translate((W - big) / 2, 118); prizeMod.paintPrize(g, it, big); g.restore();
-      return c;
-    }
-    const pic = 560;
-    g.save(); g.translate((W - pic) / 2, 120); prizeMod.paintPrize(g, it, pic); g.restore();
-    g.textAlign = 'center';
-    g.font = `800 76px ${PANEL_FONT}, sans-serif`;
-    g.lineJoin = 'round';
-    g.save(); g.shadowColor = '#2fb8ff'; g.shadowBlur = 24;
-    g.lineWidth = 14; g.strokeStyle = '#0b3d8f'; g.strokeText(it.name, W / 2, H - 82, W - 80);
-    g.restore();
-    g.fillStyle = '#ffffff'; g.fillText(it.name, W / 2, H - 82, W - 80);
+    // 画像の余白を切り落として、カテゴリー帯の下いっぱいに出す（品名は出さない。マイボックスと結果画面で出す）
+    prizeMod.paintPrizeFit(g, it, 50, 120, W - 100, H - 160);
     return c;
   }
 

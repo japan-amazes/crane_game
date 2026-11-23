@@ -87,9 +87,8 @@ const ROUND1 = [
 
 // ---- ラウンド2 ----
 // 画像ができるまでは仮の絵（箱に品名。shape: 'tbd'）。c はカテゴリーの色
-// opt.panel：パネル用の画像（品名入り）。筐体の景品パネルに画像をそのまま大きく出す（下の品名は出さない）
 function tbd(color, list) {
-  return list.map(([id, name, rarity, opt = {}]) => ({ id, name, rarity, shape: 'tbd', c: color, c2: '#ffffff', ...opt }));
+  return list.map(([id, name, rarity]) => ({ id, name, rarity, shape: 'tbd', c: color, c2: '#ffffff' }));
 }
 const ROUND2 = [
   {
@@ -107,9 +106,9 @@ const ROUND2 = [
     items: tbd('#b39dff', [
       ['eggs', '卵（10個入り×2パック）', 1], ['hamburg', '冷凍ハンバーグ', 1],
       ['cheesecake', 'チーズケーキ', 2], ['gateau', 'ガトーショコラ', 2],
-      ['porkbelly', '豚バラ肉', 3, { panel: true }], ['yakitori', '焼き鳥', 3],
-      ['unagi', '冷凍ウナギ', 4, { panel: true }], ['gyutan', '牛タン', 4, { panel: true }],
-      ['steak', 'アンガス牛ステーキ', 5, { panel: true }]
+      ['porkbelly', '豚バラ肉', 3], ['yakitori', '焼き鳥', 3],
+      ['unagi', '冷凍ウナギ', 4], ['gyutan', '牛タン', 4],
+      ['steak', 'アンガス牛ステーキ', 5]
     ])
   },
   {
@@ -195,6 +194,49 @@ export async function loadPrizeImages(base = './assets/prizes/') {
 // ---------------------------------------------------------------
 // 絵。size×size の正方形に描く
 // ---------------------------------------------------------------
+// 画像の中で、透明でない部分の範囲（景品パネルで余白を切り落として大きく出すため。品ごとに1回だけ調べる）
+const contentBox = {};
+function imageContent(id, img) {
+  if (contentBox[id]) return contentBox[id];
+  const w = img.naturalWidth, h = img.naturalHeight;
+  let box = { x: 0, y: 0, w, h };
+  try {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (d[(y * w + x) * 4 + 3] > 16) {
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 >= x0) box = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  } catch { /* 読み取れない環境では画像全体 */ }
+  return (contentBox[id] = box);
+}
+
+// 景品パネル用：画像の透明な余白を切り落として、w×h の枠いっぱいに（縦横比はそのまま、中央に）描く
+// 画像がない品は、枠に入る正方形でプログラムの絵を描く
+export function paintPrizeFit(ctx, item, x, y, w, h) {
+  const img = images[item.id];
+  if (img) {
+    const b = imageContent(item.id, img);
+    const k = Math.min(w / b.w, h / b.h);
+    const dw = b.w * k, dh = b.h * k;
+    ctx.drawImage(img, b.x, b.y, b.w, b.h, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+    return;
+  }
+  const size = Math.min(w, h);
+  ctx.save(); ctx.translate(x + (w - size) / 2, y + (h - size) / 2);
+  paintPrize(ctx, item, size);
+  ctx.restore();
+}
+
 export function paintPrize(ctx, item, size) {
   const img = images[item.id];
   if (img) { ctx.drawImage(img, 0, 0, size, size); return; }

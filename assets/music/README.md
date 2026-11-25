@@ -1,3 +1,12 @@
+# 音楽ファイル
+
+- `title.m4a`：トップ画面の曲（Majestic Brass Fanfare／Luis_Humanoide／Pixabay）。終わったら少し間を空けてくり返す
+- ゲーム中のBGMはテーマごとに違う（src/main.js の THEME_BGM）。どれもすき間なしで頭に戻してくり返す
+  - `game.m4a`：デフォルト（hook_king_italian_concerto_fade_2s.wav を AAC 128kbps に変換、39.3秒。最後の2秒がフェードアウト）
+  - `game_cool.m4a`：クール（gay_old_time.wav を AAC 128kbps に変換、30.0秒）。元の音が大きいので、ゲームの中で音量を 0.115 倍にしている
+  - `bgm.json`：キュート（ラッキーランプ・シャッフル。楽譜データ。下の形式）
+  - 使ってよい条件は確認済み
+
 # BGM の楽譜データの形式
 
 `bgm.json` を差し替えると、アプリの BGM が変わります（最後まで行くと最初に戻ってくり返します）。

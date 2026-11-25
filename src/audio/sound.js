@@ -43,6 +43,11 @@ export function createSound() {
   const waves = {};
   let noiseBuf = null;
   let song = null;          // { stepSec, totalSteps, swing, swingUnit, tracks: [{ wave, volume, events }] }
+  let bgmBuffer = null;     // 音声ファイルの BGM（m4a など）。あるときは楽譜の曲の代わりにこれを流す
+  let bgmSrc = null;
+  const bgmCache = {};      // 読み込んだ曲（url ごと）
+  let bgmWant = null;       // 今流したい曲の url
+  const BGM_VOLUME = 0.45;  // BGM 全体の音量
   let playing = false;
   let timer = null;
   let nextStep = 0, nextTime = 0;
@@ -53,7 +58,7 @@ export function createSound() {
     if (!AC) return null;
     ctx = new AC();
     master = ctx.createGain(); master.gain.value = 0.6; master.connect(ctx.destination);
-    bgmGain = ctx.createGain(); bgmGain.gain.value = 0.45; bgmGain.connect(master);
+    bgmGain = ctx.createGain(); bgmGain.gain.value = BGM_VOLUME; bgmGain.connect(master);
     sfxGain = ctx.createGain(); sfxGain.gain.value = 0.8; sfxGain.connect(master);
     // カードパックの音の出口：音割れを防ぐ圧縮 → 出口。残響（約1.4秒の響き）を少し混ぜる
     const fxComp = ctx.createDynamicsCompressor(); fxComp.threshold.value = -14; fxComp.ratio.value = 4; fxComp.connect(ctx.destination);
@@ -149,7 +154,18 @@ export function createSound() {
   }
 
   function startBgm() {
-    if (playing || !song || !song.totalSteps || !settings.bgm || !ensure() || ctx.state !== 'running') return;
+    if (playing || !settings.bgm || !ensure() || ctx.state !== 'running') return;
+    // 音声ファイルの BGM：最後まで行ったら、すき間なしで頭に戻ってくり返す
+    if (bgmBuffer) {
+      playing = true;
+      bgmSrc = ctx.createBufferSource();
+      bgmSrc.buffer = bgmBuffer;
+      bgmSrc.loop = true;
+      bgmSrc.connect(bgmGain);
+      bgmSrc.start(ctx.currentTime + 0.05);
+      return;
+    }
+    if (!song || !song.totalSteps) return;
     playing = true;
     nextStep = 0;
     nextTime = ctx.currentTime + 0.1;
@@ -158,6 +174,7 @@ export function createSound() {
   }
   function stopBgm() {
     playing = false;
+    if (bgmSrc) { try { bgmSrc.stop(); } catch { /* 止まっている */ } bgmSrc = null; }
     if (timer) clearInterval(timer);
     timer = null;
   }
@@ -350,12 +367,29 @@ export function createSound() {
   return {
     settings,
     sfx,
-    async loadBgm(url) {
+    // BGM を切り替える：.json は楽譜の曲、それ以外（.m4a など）は音声ファイル
+    //   一度読み込んだ曲は覚えておく。vol は曲ごとの音量の倍率（曲によって元の大きさが違うのを合わせる）
+    async useBgm({ url, vol = 1 }) {
+      bgmWant = url;
+      stopBgm();
       try {
-        const r = await fetch(url);
-        if (!r.ok) return;
-        loadSong(await r.json());
-        if (ctx && ctx.state === 'running') startBgm();
+        if (!bgmCache[url]) {
+          const r = await fetch(url);
+          if (!r.ok) return;
+          if (url.endsWith('.json')) { loadSong(await r.json()); bgmCache[url] = { song }; }
+          else {
+            if (!ensure()) return;
+            const data = await r.arrayBuffer();
+            bgmCache[url] = { buffer: await new Promise((ok, ng) => ctx.decodeAudioData(data, ok, ng)) };
+          }
+        }
+        if (bgmWant !== url) return;   // 読み込んでいる間に別の曲に切り替わった
+        stopBgm();
+        song = bgmCache[url].song || null;
+        bgmBuffer = bgmCache[url].buffer || null;
+        if (!ensure()) return;
+        bgmGain.gain.value = BGM_VOLUME * vol;
+        if (ctx.state === 'running') startBgm();
       } catch (e) { console.warn('BGMを読み込めませんでした', e); }
     },
     setBgm(on) { settings.bgm = on; save(); if (on) { unlock(); } else stopBgm(); },

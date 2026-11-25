@@ -270,7 +270,19 @@ async function boot() {
   const stageLabel = document.getElementById('stageLabel');
   // 特訓モード：好きな設定で遊ぶ。クレジットを使わず、取った景品はマイボックスに入らない（ステージも進まない）
   let training = false;
-  const debug = debugMod.createDebugPanel(document.getElementById('debug'), stagePreset(basePreset, stages, progress.stage), () => restart(true), heightInfo,
+  // 今のステージの設定。ラウンド2以降は、フックを80%の大きさにする（高さ・太さ。形と向きはそのまま）
+  const ROUND_HOOK_SCALE = [1, 0.8];
+  function stageBase() {
+    const p = stagePreset(basePreset, stages, progress.stage);
+    const k = ROUND_HOOK_SCALE[Math.min(progress.round, ROUND_HOOK_SCALE.length - 1)];
+    if (k !== 1) {
+      p.hook.height *= k;
+      p.hook.thickness *= k;
+      p.hook.tipBallRadius = (p.hook.tipBallRadius || 0) * k;
+    }
+    return p;
+  }
+  const debug = debugMod.createDebugPanel(document.getElementById('debug'), stageBase(), () => restart(true), heightInfo,
     // 最初の状態に戻す（テスト用）：進み具合・特訓の「NEW」を消し、クレジット無制限をオフにして読み込み直す
     //   テーマ・音のオンオフ・特訓の設定は残す
     () => {
@@ -302,7 +314,7 @@ async function boot() {
   // 新しいステージで始める（景品も新しく引く）
   function goStage(i) {
     progress.goStage(i);
-    debug.setBase(stagePreset(basePreset, stages, progress.stage));
+    debug.setBase(stageBase());
     restart(false);
   }
   await prizeMod.loadPrizeImages();   // 景品の画像（あるものだけ）
@@ -434,6 +446,13 @@ async function boot() {
   const THEME_KEY = 'crane.theme.v2';   // v1 は起動のたびにキュートを保存していたので読まない（デフォルトから始める）
   let theme = 'royal';   // 初めて起動したときはデフォルト（フック王の雰囲気）
   try { const t = localStorage.getItem(THEME_KEY); if (t === 'cool' || t === 'cute') theme = t; } catch { /* 保存できない環境 */ }
+  // テーマごとのBGM。vol は曲ごとの音量の倍率（クールの曲は元が大きいので小さくして、デフォルトの曲とそろえる）
+  const THEME_BGM = {
+    royal: { url: './assets/music/game.m4a' },                   // italian concerto（最後の2秒がフェードアウト）
+    cool: { url: './assets/music/game_cool.m4a', vol: 0.115 },   // gay old time
+    cute: { url: './assets/music/bgm.json' }                     // ラッキーランプ・シャッフル（楽譜の曲）
+  };
+  let bgmReady = false;   // トップ画面を閉じたら true
   function applyTheme(t, redraw) {
     theme = t;
     document.body.classList.toggle('theme-cool', t === 'cool');
@@ -443,6 +462,7 @@ async function boot() {
     try { localStorage.setItem(THEME_KEY, t); } catch { /* 保存できない環境 */ }
     view.setTheme(t);   // 背景・筐体・床
     if (redraw && prize) view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
+    if (bgmReady) sound.useBgm(THEME_BGM[t]);   // 曲もテーマに合わせる
   }
   for (const b of document.querySelectorAll('#themeToggle button')) b.addEventListener('click', () => applyTheme(b.dataset.theme, true));
   applyTheme(theme, false);
@@ -550,7 +570,8 @@ async function boot() {
 
   // ---- 音（BGM・効果音）----
   const sound = soundMod.createSound();
-  titleDone.then(() => sound.loadBgm('./assets/music/bgm.json'));   // ゲームのBGMはトップ画面を閉じてから
+  // ゲームのBGMはトップ画面を閉じてから。テーマごとに曲を変える（テーマを切り替えたら曲も切り替わる）
+  titleDone.then(() => { bgmReady = true; sound.useBgm(THEME_BGM[theme]); });
   const btnBgm = document.getElementById('btnBgm');
   const btnSfx = document.getElementById('btnSfx');
   function showSoundButtons() {
@@ -810,7 +831,10 @@ async function boot() {
   function showRoundPick() {
     screens.showRoundPick(i => {
       progress.startRound(i);
-      newPrize();
+      // ラウンドでフックの大きさが変わるので、ステージの設定を作り直す（結果画面の間は、次のステージへ進むときに作られる）
+      debug.setBase(stageBase());
+      if (round.arm.phase !== PHASE.DONE) restart(false);
+      else newPrize();
       updatePrizeBadge();
     });
   }

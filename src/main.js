@@ -442,14 +442,13 @@ async function boot() {
   }
 
   // ---- 見た目のテーマ（デフォルト／キュート／クール）----
-  // 画面（CSS の body のクラス）と、景品パネル・箱の絵を切り替える。選んだテーマは保存して次も使う
-  const THEME_KEY = 'crane.theme.v2';   // v1 は起動のたびにキュートを保存していたので読まない（デフォルトから始める）
-  let theme = 'royal';   // 初めて起動したときはデフォルト（フック王の雰囲気）
-  try { const t = localStorage.getItem(THEME_KEY); if (t === 'cool' || t === 'cute') theme = t; } catch { /* 保存できない環境 */ }
-  // テーマごとのBGM。vol は曲ごとの音量の倍率（クールの曲は元が大きいので小さくして、デフォルトの曲とそろえる）
+  // 画面（CSS の body のクラス）と、景品パネル・箱の絵を切り替える
+  let theme = 'royal';   // デフォルト（フック王の雰囲気）
+  // 起動したときは、前回のテーマに関係なく必ずデフォルトから始める（プレイ中の切り替えはできる）
+  // テーマごとのBGM。vol は曲ごとの音量の倍率（キュートの曲と同じくらいの大きさに聞こえるようにそろえる）
   const THEME_BGM = {
-    royal: { url: './assets/music/game.m4a' },                   // italian concerto（最後の2秒がフェードアウト）
-    cool: { url: './assets/music/game_cool.m4a', vol: 0.115 },   // gay old time
+    royal: { url: './assets/music/game.m4a', vol: 6.2 },        // italian concerto（最後の2秒がフェードアウト）。元の音が小さいので大きくする
+    cool: { url: './assets/music/game_cool.m4a', vol: 0.55 },   // gay old time。元の音が大きいので小さくする
     cute: { url: './assets/music/bgm.json' }                     // ラッキーランプ・シャッフル（楽譜の曲）
   };
   let bgmReady = false;   // トップ画面を閉じたら true
@@ -459,7 +458,6 @@ async function boot() {
     document.body.classList.toggle('theme-cute', t === 'cute');
     document.body.classList.toggle('theme-royal', t === 'royal');
     for (const b of document.querySelectorAll('#themeToggle button')) b.classList.toggle('on', b.dataset.theme === t);
-    try { localStorage.setItem(THEME_KEY, t); } catch { /* 保存できない環境 */ }
     view.setTheme(t);   // 背景・筐体・床
     if (redraw && prize) view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
     if (bgmReady) sound.useBgm(THEME_BGM[t]);   // 曲もテーマに合わせる

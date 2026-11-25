@@ -58,7 +58,12 @@ export function createSound() {
     if (!AC) return null;
     ctx = new AC();
     master = ctx.createGain(); master.gain.value = 0.6; master.connect(ctx.destination);
-    bgmGain = ctx.createGain(); bgmGain.gain.value = BGM_VOLUME; bgmGain.connect(master);
+    // BGM の出口に、大きすぎる音だけを抑える仕組み（リミッター）。曲ごとに音量を上げても割れないように
+    const bgmLimit = ctx.createDynamicsCompressor();
+    bgmLimit.threshold.value = -3; bgmLimit.knee.value = 3; bgmLimit.ratio.value = 20;
+    bgmLimit.attack.value = 0.003; bgmLimit.release.value = 0.15;
+    bgmLimit.connect(master);
+    bgmGain = ctx.createGain(); bgmGain.gain.value = BGM_VOLUME; bgmGain.connect(bgmLimit);
     sfxGain = ctx.createGain(); sfxGain.gain.value = 0.8; sfxGain.connect(master);
     // カードパックの音の出口：音割れを防ぐ圧縮 → 出口。残響（約1.4秒の響き）を少し混ぜる
     const fxComp = ctx.createDynamicsCompressor(); fxComp.threshold.value = -14; fxComp.ratio.value = 4; fxComp.connect(ctx.destination);

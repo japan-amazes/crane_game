@@ -3,6 +3,7 @@
 // buildRound() は物理だけで完結（ブラウザでもテスト環境でも動く）
 // boot() はブラウザ専用（描画・入力・画面）
 // =============================================================
+import * as cabinetMod from './render/cabinet.js';
 import { createWorld, createTable, STEP } from './physics/world.js';
 import { Arm, PHASE } from './physics/arm.js';
 import { createChain, createChainDynamics } from './physics/chain.js';
@@ -293,7 +294,7 @@ async function boot() {
       } catch { /* 保存できない環境 */ }
       location.reload();
     },
-    { dev: DEV_MODE, stageName: () => `STAGE ${progress.stage + 1}`, isTraining: () => training, setTraining: on => { training = on; updatePrizeBadge(); if (round) { setStatus(); showStageLabel(); } } });
+    { dev: DEV_MODE, onRetry: () => restart(true), stageName: () => `STAGE ${progress.stage + 1}`, isTraining: () => training, setTraining: on => { training = on; updatePrizeBadge(); if (round) { setStatus(); showStageLabel(); } } });
   // 「特訓」ボタン：全コンプリートで開放（開発中は常に表示）
   const btnDebug = document.getElementById('btnDebug');
   // 開放されてまだ押していないときは、光らせて「NEW」を付ける
@@ -457,12 +458,11 @@ async function boot() {
     document.body.classList.toggle('theme-cool', t === 'cool');
     document.body.classList.toggle('theme-cute', t === 'cute');
     document.body.classList.toggle('theme-royal', t === 'royal');
-    for (const b of document.querySelectorAll('#themeToggle button')) b.classList.toggle('on', b.dataset.theme === t);
+    document.body.classList.toggle('glb-cabinet', cabinetMod.USE_GLB_CABINET);   // 試験：GLB の筐体
     view.setTheme(t);   // 背景・筐体・床
     if (redraw && prize) view.setPrizePanel(prizePanelCanvas(prize), debug.currentPreset().field);
     if (bgmReady) sound.useBgm(THEME_BGM[t]);   // 曲もテーマに合わせる
   }
-  for (const b of document.querySelectorAll('#themeToggle button')) b.addEventListener('click', () => applyTheme(b.dataset.theme, true));
   applyTheme(theme, false);
 
   // ---- クレジット ----
@@ -570,17 +570,53 @@ async function boot() {
   const sound = soundMod.createSound();
   // ゲームのBGMはトップ画面を閉じてから。テーマごとに曲を変える（テーマを切り替えたら曲も切り替わる）
   titleDone.then(() => { bgmReady = true; sound.useBgm(THEME_BGM[theme]); });
-  const btnBgm = document.getElementById('btnBgm');
-  const btnSfx = document.getElementById('btnSfx');
-  function showSoundButtons() {
-    btnBgm.classList.toggle('active', sound.settings.bgm);
-    btnSfx.classList.toggle('active', sound.settings.sfx);
-    btnBgm.textContent = sound.settings.bgm ? '♪ BGM オン' : '♪ BGM オフ';
-    btnSfx.textContent = sound.settings.sfx ? '効果音 オン' : '効果音 オフ';
+  // ---- 設定画面（⚙ 設定）：テーマ・カメラの距離・BGM・効果音 ----
+  //   カメラの距離は保存して次も使う。テーマは起動のたびにデフォルトから
+  const CAMDIST_KEY = 'crane.camDistance.v1';
+  let camDistance = 0;   // 0＝全体、1＝中、2＝近い
+  try { const v = Number(localStorage.getItem(CAMDIST_KEY)); if ([0, 1, 2].includes(v)) camDistance = v; } catch { /* 保存できない環境 */ }
+  view.setDistance(camDistance);
+  function openSettings() {
+    screens.showSettings({
+      theme, camDistance,
+      bgm: sound.settings.bgm, sfx: sound.settings.sfx, bgmVol: sound.settings.bgmVol, sfxVol: sound.settings.sfxVol
+    }, {
+      theme: t => applyTheme(t, true),
+      camDistance: v => {
+        camDistance = v;
+        try { localStorage.setItem(CAMDIST_KEY, String(v)); } catch { /* 保存できない環境 */ }
+        view.setDistance(v, 0.5);
+      },
+      bgm: on => sound.setBgm(on),
+      sfx: on => sound.setSfx(on),
+      bgmVol: v => sound.setBgmVol(v),
+      sfxVol: v => sound.setSfxVol(v)
+    });
   }
-  btnBgm.addEventListener('click', () => { sound.setBgm(!sound.settings.bgm); showSoundButtons(); });
-  btnSfx.addEventListener('click', () => { sound.setSfx(!sound.settings.sfx); showSoundButtons(); });
-  showSoundButtons();
+  document.getElementById('btnSettings').addEventListener('click', openSettings);
+
+  // 試験：操作ボタンを、仮の下部外装の前面に合わせて置く（画面の大きさが変わるたびに合わせ直す）
+  //   外装の中：上に流れる文字の帯（TICKER_H）、その下に操作ボタン、底に余白（CTL_PAD_BOTTOM）
+  function layoutControls() {
+    if (!document.body.classList.contains('full-layout')) return;
+    const short = window.innerHeight < 700;   // 縦が短い画面は帯と余白を少し詰める
+    const TICKER_H = short ? 18 : 22, TICKER_GAP = short ? 4 : 6, CTL_PAD_BOTTOM = short ? 6 : 8;
+    const ctl = document.getElementById('controls'), tk = document.getElementById('ticker');
+    ctl.style.height = 'auto'; ctl.style.top = '0px'; ctl.style.bottom = 'auto';
+    const need = ctl.offsetHeight;   // ボタンに必要な高さ
+    view.setControlsReserve(TICKER_H + TICKER_GAP + need + CTL_PAD_BOTTOM + 4);
+    const r = view.consoleRect();
+    const pad = r.width * 0.03;
+    ctl.style.left = (r.left + pad) + 'px';
+    ctl.style.width = (r.width - pad * 2) + 'px';
+    ctl.style.top = (r.top + 4 + TICKER_H + TICKER_GAP) + 'px';
+    ctl.style.height = (r.bottom - CTL_PAD_BOTTOM - (r.top + 4 + TICKER_H + TICKER_GAP)) + 'px';
+    tk.style.left = (r.left + pad) + 'px'; tk.style.width = (r.width - pad * 2) + 'px'; tk.style.right = 'auto';
+    tk.style.top = (r.top + 4) + 'px'; tk.style.height = TICKER_H + 'px';
+    window.__layout = r;
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(layoutControls));
+  window.__poseInfo = (d, n) => view.poseInfo(d, n);   // 試験：カメラの値を調べる用
 
   let round = null;
   let acc = 0;
@@ -754,7 +790,6 @@ async function boot() {
   document.querySelectorAll('[data-cam]').forEach(b => {
     b.addEventListener('click', () => setCamMode(b.dataset.cam));
   });
-  document.getElementById('btnRetry').addEventListener('click', () => restart(true));
   document.getElementById('btnDebug').addEventListener('click', () => debug.toggle());
 
   // ---- 結果表示 ----
@@ -871,6 +906,7 @@ async function boot() {
   }
 
   restart(false);
+  layoutControls();   // 試験
   if (progress.roundPickPending) showRoundPick();   // 選ぶ前にアプリを閉じていたとき
   requestAnimationFrame(frame);
 }

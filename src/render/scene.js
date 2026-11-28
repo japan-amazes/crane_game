@@ -4,11 +4,15 @@
 // カメラ：正面（front）/ フック付近の斜めからの拡大（zoom）/ 正面の向きのままフック付近を拡大（zoomFront）
 // =============================================================
 
+import { createRoyalGoldFinish } from './royalGold.js';
 import * as cabinetMod from './cabinet.js';
 
 export function createScene(THREE, canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  // デフォルト（royal）の筐体の鏡面ゴールド（Codex 製）。反射マップはここで一度だけ作り、テーマを切り替えても使い回す
+  const royalGold = createRoyalGoldFinish(THREE, renderer);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.localClippingEnabled = true;   // 試験：床を筐体の内側だけ描くため
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // 影のふちを柔らかく
 
@@ -164,6 +168,14 @@ export function createScene(THREE, canvas) {
   let viewName = 'front';
   let showGuide = false;
 
+  // 試験：筐体の外にはみ出した部分を描かない（見た目だけ。当たり判定はそのまま）
+  const CABINET_CLIP = [
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), 20), new THREE.Plane(new THREE.Vector3(-1, 0, 0), 20),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), 14.6), new THREE.Plane(new THREE.Vector3(0, 0, -1), 15.5)
+  ];
+  function clipGroup(group) {
+    group.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) { m.clippingPlanes = CABINET_CLIP; } });
+  }
   function buildPart(p) {
     let geo;
     if (p.type === 'box') geo = p.round ? roundedBox(p.size[0], p.size[1], p.size[2], p.round)
@@ -212,6 +224,7 @@ export function createScene(THREE, canvas) {
     }
     const mesh = new THREE.Mesh(geo, mat);
     if (p.floor) mesh.userData.floor = true;
+    if (p.hideInView) mesh.visible = false;   // 試験：描かない部品（アームの上に突き出た棒）
     if (p.type === 'rod') {
       // 2点を結ぶ棒（from → to）
       const a = new THREE.Vector3(...p.from), b = new THREE.Vector3(...p.to);
@@ -342,6 +355,8 @@ export function createScene(THREE, canvas) {
     for (const v of r.visuals) {
       const group = new THREE.Group();
       for (const p of v.parts) group.add(buildPart(p));
+      // 試験：床のかたまり（取り出し口の穴の壁も含む）は、筐体の内側（x −20〜20、z −14.6〜15.5）だけ描く
+      if (v.parts.some(p => p.floor)) { group.userData.clipToCabinet = true; clipGroup(group); }
       scene.add(group);
       const t = v.body.translation(), q = v.body.rotation();
       tracked.push({
@@ -355,6 +370,14 @@ export function createScene(THREE, canvas) {
   }
 
   const FRONT_ARM_HEIGHT = 45;
+  let camDistance = 0;   // ノーマルの距離：0＝全体、1＝中、2＝近い
+  // 試験：「全体」の構図（完成予想図から逆算した値が出発点）
+  const FULL_VIEW = { z: 59, y: 24, widthRatio: 0.95, topAt: 0.091 };
+  const NEAR_VIEW = { width: 30, centerY: 22 };   // 近い：z = 0 で横30cmが画面幅。中：全体と近いの真ん中の距離
+  function setDistance(level, duration = 0) {
+    camDistance = level;
+    if (viewName === 'front') setView('front', duration);
+  }
   // 各カメラの位置・注視点・画角を計算する
   function viewPose(name) {
     const h = round.machine.hookWorldBase();
@@ -373,17 +396,35 @@ export function createScene(THREE, canvas) {
       return {
         fov: 40,
         pos: new THREE.Vector3(h.x + d * 0.45, h.y + 5, h.z + d * 0.9),
-        look: new THREE.Vector3(h.x, h.y + 1.5, h.z + 0.8)
+        look: new THREE.Vector3(h.x, h.y + 1.5, h.z + 0.8),
+        offY: 0.5 - layoutFull().playCenter   // 試験：見ている点を上のプレイ領域の中央へ
       };
     }
+    // 手前の枠（キュート・クール）を置くときに使う、今までの「近い」
     const d = Math.max(40, fit(30, 50), fitH(top * 1.35, 50));
-    const front = { fov: 50, pos: new THREE.Vector3(0, top * 0.6, d), look: new THREE.Vector3(0, top * 0.5, 0) };
+    const oldNear = { fov: 50, pos: new THREE.Vector3(0, top * 0.6, d), look: new THREE.Vector3(0, top * 0.5, 0) };
+    if (name === 'frontNear') return oldNear;
+    // 試験：新しい画面構成
+    //   全体：完成予想図に合わせた構図（layoutFull で決める）
+    //   中・近い：全体と同じ横の画角・高さ・水平な視線のまま前へ寄る。上のプレイ領域の中央に、板からアームまで（y ≒ 22）が来るようにずらす
+    const L = layoutFull();
+    const full = L.pose;
+    const tH = Math.tan(L.hHalf);
+    const zNear = NEAR_VIEW.width / 2 / tH;                 // z = 0 で横 NEAR_VIEW.width cm が画面幅になる距離
+    const horiz = z => {
+      const p = { fov: full.fov, pos: new THREE.Vector3(0, FULL_VIEW.y, z), look: new THREE.Vector3(0, FULL_VIEW.y, -100) };
+      const t = Math.tan(full.fov * Math.PI / 360);
+      const f0 = 0.5 - ((NEAR_VIEW.centerY - FULL_VIEW.y) / z) / t / 2;   // y = centerY（z = 0）の、ずらす前の位置
+      p.offY = f0 - L.playCenter;
+      return p;
+    };
+    const front = camDistance === 2 ? horiz(zNear) : camDistance === 1 ? horiz((zNear + FULL_VIEW.z) / 2) : full;
     if (name === 'zoomFront') {
       // 正面ズーム：正面と同じ向き・角度のまま、フック付近へ寄る（見える幅は斜めズームと同じ）
       const dir = front.look.clone().sub(front.pos).normalize();
       const look = new THREE.Vector3(h.x, h.y + 1.5, h.z);
       const dz = Math.max(16, fit(11, 40));
-      return { fov: 40, pos: look.clone().addScaledVector(dir, -dz), look };
+      return { fov: 40, pos: look.clone().addScaledVector(dir, -dz), look, offY: 0.5 - layoutFull().playCenter };
     }
     return front;
   }
@@ -396,8 +437,12 @@ export function createScene(THREE, canvas) {
     camera.fov = p.fov;
     camera.position.copy(p.pos);
     camera.lookAt(p.look);
+    // 試験：絵を上下にずらす（カメラの向きは変えないので、遠近感はそのまま）
+    const off = p.offY || 0;
+    const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+    if (off) camera.setViewOffset(w, h, 0, off * h, w, h); else camera.clearViewOffset();
     camera.updateProjectionMatrix();
-    cur.fov = p.fov; cur.pos.copy(p.pos); cur.look.copy(p.look);
+    cur.fov = p.fov; cur.pos.copy(p.pos); cur.look.copy(p.look); cur.offY = off;
   }
 
   // duration（秒）を付けると、今の位置からなめらかに移る
@@ -407,7 +452,7 @@ export function createScene(THREE, canvas) {
     const to = viewPose(name);
     if (duration > 0) {
       tween = {
-        from: { fov: cur.fov, pos: cur.pos.clone(), look: cur.look.clone() },
+        from: { fov: cur.fov, pos: cur.pos.clone(), look: cur.look.clone(), offY: cur.offY || 0 },
         to, start: performance.now(), dur: duration * 1000
       };
     } else {
@@ -424,7 +469,8 @@ export function createScene(THREE, canvas) {
     applyPose({
       fov: tween.from.fov + (tween.to.fov - tween.from.fov) * t,
       pos: tween.from.pos.clone().lerp(tween.to.pos, t),
-      look: tween.from.look.clone().lerp(tween.to.look, t)
+      look: tween.from.look.clone().lerp(tween.to.look, t),
+      offY: (tween.from.offY || 0) + ((tween.to.offY || 0) - (tween.from.offY || 0)) * t
     });
   }
 
@@ -476,13 +522,105 @@ export function createScene(THREE, canvas) {
       const a = armGroup ? armGroup.position : round.arm.pos;
       guide.position.set(a.x, guideHeight(a), a.z);
     }
+    // 試験：上のプレイ領域は今のカメラで、下部外装（操作パネル）は「全体」のカメラで描く
+    //   全体の構図で止まっているときは、同じ絵なので1回で描く
+    const same = viewName === 'front' && camDistance === 0 && !tween;
+    if (same) { renderer.render(scene, camera); return; }
+    const L = updateFixedCam();
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const split = Math.round(L.consoleTop * h);   // 上から split px までがプレイ領域
+    renderer.setScissorTest(true);
+    renderer.setScissor(0, h - split, w, split);
     renderer.render(scene, camera);
+    renderer.setScissor(0, 0, w, h - split);
+    renderer.render(scene, fixedCam);
+    renderer.setScissorTest(false);
   }
 
   // 筐体の飾り（テーマ別。cabinet.js）。フィールドの奥行きかテーマが変わったときだけ作り直す
   let theme = 'cute';
   applyThemeLight(theme);
   let cabinet = null, cabinetKey = '';
+  // ---- 試験：新しい画面構成 ----
+  // 全体の構図：カメラ z = FULL_VIEW.z、高さ y、水平な視線。前面（z = 15.5、幅40cm）が画面幅の ratio になる横の画角
+  //   絵の上下の位置は setViewOffset で、上の飾りのてっぺん（y = 56）が画面の上から topAt の位置に来るようにする
+  //   決め方：ratio をなるべく大きく（最大 0.95）、topAt はなるべく 0.091（完成予想図）に近く。ただし
+  //     ・下部外装の底が画面の下から CONSOLE_FIT.margin px 以内に収まる
+  //     ・下部外装の高さ（画面上）が、操作ボタンに必要な高さ（controlsReserve）以上
+  let controlsReserve = 0;   // 操作ボタン（流れる文字の帯を含む）に必要な高さ（px）。main.js から
+  let layoutCache = null, layoutKey = '';
+  function poseFor(ratio, topAt, aspect) {
+    const FV = FULL_VIEW;
+    const hHalf = Math.atan((40 / ratio / 2) / (FV.z - 15.5));
+    const vfov = 2 * Math.atan(Math.tan(hHalf) / aspect) * 180 / Math.PI;
+    const t = Math.tan(vfov * Math.PI / 360);
+    const frac = (y, z) => 0.5 - ((y - FV.y) / (FV.z - z)) / t / 2;   // ずらす前の、画面の上からの位置（0〜1）
+    const offY = frac(56, 15) - topAt;
+    return {
+      pose: { fov: vfov, pos: new THREE.Vector3(0, FV.y, FV.z), look: new THREE.Vector3(0, FV.y, -100), offY },
+      hHalf, ratio, topAt,
+      consoleTop: frac(TEMP_CONSOLE.top, TEMP_CONSOLE.front) - offY,
+      consoleBottom: frac(TEMP_CONSOLE.bottom, TEMP_CONSOLE.front) - offY
+    };
+  }
+  function layoutFull() {
+    const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+    const key = `${w}x${h}:${controlsReserve}`;
+    if (layoutCache && key === layoutKey) return layoutCache;
+    const aspect = w / h;
+    let best = null;
+    for (let ratio = FULL_VIEW.widthRatio; ratio >= 0.6 && !best; ratio -= 0.005) {
+      for (let topAt = FULL_VIEW.topAt; topAt >= CONSOLE_FIT.minTopAt - 1e-9; topAt -= 0.005) {
+        const L = poseFor(ratio, topAt, aspect);
+        const okBottom = L.consoleBottom * h <= h - (h < 700 ? CONSOLE_FIT.marginShort : CONSOLE_FIT.margin);
+        const okHeight = (L.consoleBottom - L.consoleTop) * h >= controlsReserve;
+        if (okBottom && okHeight) { best = L; break; }
+      }
+    }
+    best = best || poseFor(0.6, CONSOLE_FIT.minTopAt, aspect);
+    best.playCenter = best.consoleTop / 2;   // 上のプレイ領域（画面の上〜下部外装の上の端）の中央
+    layoutCache = best; layoutKey = key;
+    return best;
+  }
+  function setControlsReserve(px) {
+    if (Math.abs(px - controlsReserve) < 1) return;
+    controlsReserve = px;
+    if (round) setView(viewName);
+  }
+  // 下部外装（操作パネル）は、いつも「全体」のカメラで描く（ズームや距離を変えても動かない）
+  const fixedCam = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
+  function updateFixedCam() {
+    const L = layoutFull(), p = L.pose;
+    const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+    fixedCam.aspect = w / h; fixedCam.fov = p.fov; fixedCam.near = camera.near; fixedCam.far = camera.far;
+    fixedCam.position.copy(p.pos); fixedCam.lookAt(p.look);
+    fixedCam.setViewOffset(w, h, 0, p.offY * h, w, h);
+    fixedCam.updateProjectionMatrix(); fixedCam.updateMatrixWorld();
+    return L;
+  }
+  // 試験：仮の下部外装。筐体の台（y = −2）の下から、前面 z = TEMP_CONSOLE.front に立つ箱
+  const TEMP_CONSOLE = { halfW: 20, top: -2, bottom: -25, front: 16, depth: 2 };
+  const CONSOLE_FIT = { margin: 14, marginShort: 10, minTopAt: 0.03 };   // 外装の底と画面の下の余白（px）、上の飾りを上げてよい限度
+  function tempConsole() {
+    const c = TEMP_CONSOLE;
+    const color = theme === 'cool' ? 0x26324a : theme === 'cute' ? 0x7a3f9a : 0x8a1424;   // 背景と見分けがつく色
+    const m = new THREE.Mesh(new THREE.BoxGeometry(c.halfW * 2, c.top - c.bottom, c.depth),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1 }));
+    m.position.set(0, (c.top + c.bottom) / 2, c.front - c.depth / 2);
+    m.userData.tempConsole = true;
+    return m;
+  }
+  // 試験：操作ボタンを置く場所。「全体」の構図で仮外装の前面の四すみを画面に写した位置（ピクセル）
+  function consoleRect() {
+    const c = TEMP_CONSOLE;
+    const L = updateFixedCam();
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const toPx = v => { v.project(fixedCam); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; };
+    const tl = toPx(new THREE.Vector3(-c.halfW, c.top, c.front));
+    const tr = toPx(new THREE.Vector3(c.halfW, c.top, c.front));
+    const bl = toPx(new THREE.Vector3(-c.halfW, c.bottom, c.front));
+    return { left: tl.x, right: tr.x, top: tl.y, bottom: bl.y, width: tr.x - tl.x, screenH: h, widthRatio: L.ratio, topAt: L.topAt };
+  }
   function setCabinet(field) {
     const key = theme;   // 筐体はテーマが変わったときだけ作り直す
     if (cabinet && key === cabinetKey) return;
@@ -494,14 +632,16 @@ export function createScene(THREE, canvas) {
       });
     }
     cabinetKey = key;
-    cabinet = cabinetMod.buildCabinet(THREE, { field, theme, envMap: chromeEnv() });
+    cabinet = cabinetMod.buildCabinet(THREE, { field, theme, envMap: chromeEnv(), goldFinish: royalGold });
+    // 試験：仮の下部外装（操作ボタンを囲む部分）。装飾なしの箱
+    cabinet.add(tempConsole());
     scene.add(cabinet);
     fitFrame();
   }
   // 手前の枠：正面カメラで見たとき、天幕が画面の上端、柱が左右の端、電球の帯が下端に来るように並べる
   function fitFrame() {
     if (!cabinet || !round) return;
-    const p = viewPose('front');
+    const p = viewPose('frontNear');   // 枠は「近い」で見たときの画面の端に合わせて置く（距離を変えても筐体の同じ場所にある）
     const c = camera.clone();
     c.fov = p.fov; c.position.copy(p.pos); c.lookAt(p.look);
     c.updateProjectionMatrix(); c.updateMatrixWorld();
@@ -525,6 +665,7 @@ export function createScene(THREE, canvas) {
       setCabinet(round.preset.field);
       for (const tr of tracked) tr.group.traverse(o => {
         if (o.userData.floor) { o.material.dispose(); o.material = cabinetMod.floorMaterial(THREE, theme, chromeEnv()); }
+        if (o.userData.floor) o.material.clippingPlanes = CABINET_CLIP;
       });
     }
   }
@@ -567,6 +708,10 @@ export function createScene(THREE, canvas) {
   }
 
   return {
+    consoleRect,   // 試験：操作ボタンを置く場所
+    setControlsReserve,
+    poseInfo: (dist, name = 'front') => { const saved = camDistance; camDistance = dist; const p = viewPose(name); camDistance = saved; const L = layoutFull();
+      return { fov: p.fov, hfov: 2 * Math.atan(Math.tan(p.fov * Math.PI / 360) * camera.aspect) * 180 / Math.PI, pos: p.pos.toArray(), look: p.look.toArray(), offY: p.offY, widthRatio: L.ratio, topAt: L.topAt, consoleTop: L.consoleTop, consoleBottom: L.consoleBottom }; },
     setRound,
     setPrizePanel,
     // 景品パネルの「未獲得!!」シールを出す／消す
@@ -575,6 +720,7 @@ export function createScene(THREE, canvas) {
     setTheme,
     savePrev,
     setView,
+    setDistance,
     render,
     setGuide(on) { showGuide = on; }
   };

@@ -28,7 +28,43 @@ function tex(THREE, name, { repeat = null, flipX = false } = {}) {
   return t;
 }
 
-export function buildCabinet(THREE, { field, theme }) {
+// ---- 試験：Codex が作ったデフォルトの筐体の3Dモデル（GLB）----
+//   USE_GLB_CABINET を false にすれば、今までの筐体に戻る
+//   GLB は「背面・左右のガラス・天井と照明・手前の柱・上の飾り・下の台」をまとめて持っているので、
+//   読み込めたら今までのデフォルトの筐体（壁・ガラス・飾り・天井・柱・棒・手前の枠）は全部隠す。床はそのまま
+import { GLTFLoader } from '../../vendor/three/addons/loaders/GLTFLoader.js';
+export const USE_GLB_CABINET = true;
+const GLB_ENV_INTENSITY = 2.0;   // 金属の映り込みの強さ
+let glbCache = null;
+function attachGlb(THREE, g, theme, envMap, goldFinish) {
+  if (!USE_GLB_CABINET || theme !== 'royal') return;
+  const add = gltf => {
+    const root = gltf.scene.clone(true);
+    root.userData.glbCabinet = true;
+    // 金色以外の金属・つやのある部品：リングやフックと同じ映り込み用の景色
+    root.traverse(o => {
+      if (!o.isMesh) return;
+      o.material = o.material.clone();
+      o.material.envMap = envMap || null;
+      o.material.envMapIntensity = GLB_ENV_INTENSITY;
+      o.material.needsUpdate = true;
+    });
+    // 金色の部品（Polished warm brass・Champagne edge trim）：Codex の鏡面ゴールド（royalGold.js）。シーンに追加する前に適用する
+    if (goldFinish) goldFinish.apply(root);
+    for (const c of g.children) if (!c.userData.tempConsole) c.visible = false;   // 今までの筐体を隠す（仮外装は残す）
+    g.add(root);
+  };
+  if (glbCache) { add(glbCache); return; }
+  new GLTFLoader().load('./assets/cabinet3d/royal-cabinet-codex.glb', gltf => { glbCache = gltf; add(gltf); },
+    undefined, e => console.warn('GLB の読み込みに失敗', e));
+}
+
+export function buildCabinet(THREE, opts) {
+  const g = buildCabinetBase(THREE, opts);
+  attachGlb(THREE, g, opts.theme, opts.envMap, opts.goldFinish);
+  return g;
+}
+function buildCabinetBase(THREE, { field, theme }) {
   const g = new THREE.Group();
   if (theme === 'royal') return buildRoyal(THREE, g);
   const th = theme === 'cool' ? 'cool' : 'cute';

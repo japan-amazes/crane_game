@@ -280,5 +280,42 @@ export function createScreens({ progress, onPickStage, canUseReady, onUseItem, s
     }));
   }
 
-  return { showBox, showShop, showStages, showAd, showNoCredit, showRoundPick, close, prizeCanvas, get isOpen() { return !root.hidden; } };
+  // ---- 設定画面 ----
+  // st：今の設定 { theme, camDistance, bgm, sfx, bgmVol, sfxVol }
+  // on：変えたときに呼ぶ { theme(t), camDistance(v), bgm(on), sfx(on), bgmVol(v), sfxVol(v) }
+  function showSettings(st, on) {
+    const seg = (key, attr, list) => `<div class="set-seg">${list.map(([v, label]) =>
+      `<button data-${attr}="${v}" class="${String(st[key]) === String(v) ? 'on' : ''}">${label}</button>`).join('')}</div>`;
+    const snd = (key, label) => `<div class="set-snd">
+        <button data-snd="${key}" class="${st[key] ? 'on' : ''}">${label} ${st[key] ? 'オン' : 'オフ'}</button>
+        <input type="range" min="0" max="100" step="5" value="${Math.round(st[key + 'Vol'] * 100)}" data-vol="${key}">
+      </div>`;
+    open(`
+      <div class="m-head"><b>⚙ 設定</b><button class="m-x" data-close>×</button></div>
+      <div class="set-sec"><b>見た目のテーマ</b>${seg('theme', 'theme', [['royal', 'デフォルト'], ['cute', 'キュート'], ['cool', 'クール']])}</div>
+      <div class="set-sec"><b>カメラの距離（ノーマル）</b>${seg('camDistance', 'dist', [[0, '全体'], [1, '中'], [2, '近い']])}</div>
+      <div class="set-sec"><b>BGM</b>${snd('bgm', '♪ BGM')}</div>
+      <div class="set-sec"><b>効果音</b>${snd('sfx', '効果音')}</div>`);
+    for (const [key, attr] of [['theme', 'theme'], ['camDistance', 'dist']]) {
+      const btns = root.querySelectorAll(`[data-${attr}]`);
+      btns.forEach(b => b.addEventListener('click', () => {
+        st[key] = key === 'camDistance' ? Number(b.dataset[attr]) : b.dataset[attr];
+        on[key](st[key]);
+        btns.forEach(x => x.classList.toggle('on', x === b));
+      }));
+    }
+    root.querySelectorAll('[data-snd]').forEach(b => b.addEventListener('click', () => {
+      const key = b.dataset.snd;
+      st[key] = !st[key];
+      on[key](st[key]);
+      b.classList.toggle('on', st[key]);
+      b.textContent = `${key === 'bgm' ? '♪ BGM' : '効果音'} ${st[key] ? 'オン' : 'オフ'}`;
+    }));
+    root.querySelectorAll('[data-vol]').forEach(r => r.addEventListener('input', () => {
+      const key = r.dataset.vol;
+      on[key + 'Vol'](Number(r.value) / 100);
+    }));
+  }
+
+  return { showBox, showShop, showStages, showAd, showNoCredit, showRoundPick, showSettings, close, prizeCanvas, get isOpen() { return !root.hidden; } };
 }

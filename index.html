@@ -65,8 +65,19 @@
     box-shadow: 0 0 8px #ffd34d99, inset 0 1px 0 #ffffff44; pointer-events: none; }
   #stageLabel::after { content: '★'; position: absolute; right: 9px; top: 50%; transform: translateY(-52%);
     font-size: 20px; color: var(--gold); text-shadow: 0 0 6px #ffd34d; }
-  #btnDebug { position: absolute; right: calc(10px + var(--sar)); top: calc(34px + var(--sat));
-    border-radius: 999px; padding: 6px 14px; }
+  /* 右上：特訓（解放されたら）と設定 */
+  #topBtns { position: absolute; right: calc(10px + var(--sar)); top: calc(34px + var(--sat)); display: flex; gap: 6px; }
+  #topBtns button { position: relative; border-radius: 999px; padding: 6px 14px; }
+  /* 設定画面 */
+  .set-sec { margin: 4px 0 14px; }
+  .set-sec > b { display: block; font-size: 13px; color: var(--sub); margin-bottom: 6px; }
+  .set-seg { display: flex; gap: 6px; }
+  .set-seg button { flex: 1; padding: 8px 4px; font-size: 14px; }
+  .set-seg button.on { color: #fff; border-color: var(--gold); box-shadow: 0 0 8px var(--gold); }
+  .set-snd { display: flex; align-items: center; gap: 10px; }
+  .set-snd button { width: 112px; flex: none; padding: 7px 0; font-size: 14px; white-space: nowrap; }
+  .set-snd button.on { color: #fff; border-color: var(--gold); }
+  .set-snd input { flex: 1; accent-color: var(--gold); }
   #hud { position: absolute; left: calc(10px + var(--sal)); top: calc(72px + var(--sat));
     display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sub); pointer-events: none; }
   #hud span { background: linear-gradient(#4a2780ee, #2f1655ee); border: 1.5px solid #8a63d2; border-radius: 999px;
@@ -508,9 +519,29 @@
   body.theme-royal .m-mode button.on { color: #3a1a04; text-shadow: none; border-color: #fff2b8; background: linear-gradient(#fff2b8, #e0ad3c 55%, #b8862e); }
   body.theme-royal .m-cell.got .m-name, body.theme-royal .m-num { color: #fff; }
   body.theme-royal .m-msg, body.theme-royal .m-item-txt span { color: #f3c64a; }
+  /* 試験：Codex の筐体（GLB）に王冠の飾りがあるので、筐体の上に重ねている王冠は出さない */
+  body.theme-royal.glb-cabinet #stage::after { content: none; }
+  /* ===== 試験：画面全体に3Dを描き、操作ボタンは筐体の下部外装の上に重ねる ===== */
+  body.full-layout #stage { position: fixed; inset: 0; flex: none; background: transparent; }
+  body.full-layout #view { width: 100%; height: 100%; aspect-ratio: auto; max-width: none; }
+  body.full-layout #controls { position: fixed; flex: none; background: none !important; border: none !important; box-shadow: none !important;
+    padding: 0; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; }
+  body.full-layout #ticker span { line-height: 22px; font-size: 13px; }
+  body.full-layout #ticker { border-radius: 6px; }
+  /* 縦が短い画面：ボタンを少し小さく、間を少し詰める（押しやすさは保てる大きさ） */
+  @media (max-height: 700px) {
+    body.full-layout .views { margin-bottom: 5px; }
+    body.full-layout .views button { padding: 4px 6px; font-size: 13px; }
+    body.full-layout .hold { height: 46px; font-size: 26px; }
+    body.full-layout .row3 { margin-top: 14px; }
+    body.full-layout .row3 button { padding-top: 6px; padding-bottom: 6px; }
+    body.full-layout #ticker span { line-height: 18px; font-size: 12px; }
+  }
+  body.full-layout #controls::before, body.full-layout #controls::after { content: none !important; }
+  body.full-layout #ticker { position: fixed; bottom: auto; }
 </style>
 </head>
-<body class="theme-royal">
+<body class="theme-royal full-layout">
 <!-- トップ画面：タイトルの絵と START。押すとゲーム画面へ -->
 <div id="title">
   <img class="tt-img" src="./assets/title.webp" alt="フック王">
@@ -521,7 +552,7 @@
     <canvas id="view"></canvas>
     <div id="status"></div>
     <div id="stageLabel"></div>
-    <button id="btnDebug">⚙ 特訓</button>
+    <div id="topBtns"><button id="btnDebug">🎯 特訓</button><button id="btnSettings">⚙ 設定</button></div>
     <div id="hud"></div>
     <div id="result" hidden></div>
     <!-- 筐体の画面のいちばん下の帯：文字を流す（①を押す前だけ表示） -->
@@ -533,21 +564,14 @@
       <button data-cam="front">正面ズーム</button>
       <button data-cam="zoom">斜めズーム</button>
     </div>
-    <!-- 見た目のテーマの切り替え -->
-    <div id="themeToggle"><button data-theme="royal">デフォルト</button><button data-theme="cute">キュート</button><button data-theme="cool">クール</button></div>
     <div class="main">
       <button id="btnX" class="hold">①</button>
       <button id="btnZ" class="hold" disabled>②</button>
     </div>
     <div class="row3">
-      <button id="btnRetry">最初から</button>
       <button id="btnStages">ステージ</button>
       <button id="btnBox">マイボックス</button>
-    </div>
-    <div class="sounds">
       <button id="btnShop">交換所</button>
-      <button id="btnBgm">♪ BGM</button>
-      <button id="btnSfx">効果音</button>
     </div>
   </div>
   <!-- 特訓の設定：開いている間は、下半分（ボタンの場所）に出してスクロールする。上の筐体でその場で確認 -->

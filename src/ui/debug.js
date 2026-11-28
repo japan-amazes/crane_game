@@ -116,6 +116,13 @@ export function createDebugPanel(container, basePreset, onApply, heightInfo, onS
     close.textContent = '閉じる';
     close.addEventListener('click', () => toggle(false));
     btns.append(reset, close);
+    // 最初から（開発中だけ）：リングの揺れを消して、止まった状態からやり直す
+    if (dev && opts.onRetry) {
+      const retry = el('button', '');
+      retry.textContent = '最初から';
+      retry.addEventListener('click', () => opts.onRetry());
+      btns.prepend(retry);
+    }
     head.querySelector('.dbg-title').appendChild(btns);
 
     // 特訓モード中は「通常のゲームに戻る」、通常モードでは「保存した設定で特訓を始める」

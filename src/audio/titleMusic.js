@@ -13,14 +13,18 @@ const LOOP_GAP = 1.0;     // 曲が終わってから頭に戻るまでの間（
 const FADE_OUT = 1.0;     // START を押してから消えるまで（秒）
 
 export function startTitleMusic(titleEl, startBtn) {
-  let bgmOn = true;
-  try { bgmOn = JSON.parse(localStorage.getItem('crane.sound.v1') || '{}').bgm !== false; } catch { /* 保存できない環境 */ }
+  let bgmOn = true, bgmVol = 1;   // 設定画面の BGM のオン・オフと音量
+  try {
+    const st = JSON.parse(localStorage.getItem('crane.sound.v1') || '{}');
+    bgmOn = st.bgm !== false;
+    if (Number.isFinite(st.bgmVol)) bgmVol = st.bgmVol;
+  } catch { /* 保存できない環境 */ }
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!bgmOn || !AC) return { stop() {} };
 
   const ctx = new AC();
   const gain = ctx.createGain();
-  gain.gain.value = VOLUME;
+  gain.gain.value = VOLUME * bgmVol;
   gain.connect(ctx.destination);
   let buffer = null, src = null, gapTimer = null, stopped = false;
 

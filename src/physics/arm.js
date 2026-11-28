@@ -53,7 +53,7 @@ export class Arm {
       body: this.body,
       parts: [
         { type: 'box', size: [1.6, 1.2, 1.6], pos: [0, 0.6, 0], color: 0xc9ced8, castShadow: false },
-        { type: 'box', size: [0.3, 40, 0.3], pos: [0, 20.6, 0], color: 0x8a92a3, castShadow: false }
+        { type: 'box', size: [0.3, 40, 0.3], pos: [0, 20.6, 0], color: 0x8a92a3, castShadow: false, hideInView: true }   // hideInView：試験で描かない（天井から上に突き出すため）
       ]
     };
   }

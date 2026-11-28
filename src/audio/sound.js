@@ -35,7 +35,7 @@ export function parseTrack(text) {
 }
 
 export function createSound() {
-  let settings = { bgm: true, sfx: true };
+  let settings = { bgm: true, sfx: true, bgmVol: 1, sfxVol: 1 };   // bgmVol・sfxVol：設定画面の音量（0〜1）
   try { Object.assign(settings, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch { /* 保存できない環境 */ }
 
   let ctx = null, master = null, bgmGain = null, sfxGain = null;
@@ -48,6 +48,8 @@ export function createSound() {
   const bgmCache = {};      // 読み込んだ曲（url ごと）
   let bgmWant = null;       // 今流したい曲の url
   const BGM_VOLUME = 0.45;  // BGM 全体の音量
+  const SFX_VOLUME = 0.8;   // 効果音 全体の音量
+  let songVol = 1;          // 今の曲ごとの音量の倍率
   let playing = false;
   let timer = null;
   let nextStep = 0, nextTime = 0;
@@ -63,8 +65,8 @@ export function createSound() {
     bgmLimit.threshold.value = -3; bgmLimit.knee.value = 3; bgmLimit.ratio.value = 20;
     bgmLimit.attack.value = 0.003; bgmLimit.release.value = 0.15;
     bgmLimit.connect(master);
-    bgmGain = ctx.createGain(); bgmGain.gain.value = BGM_VOLUME; bgmGain.connect(bgmLimit);
-    sfxGain = ctx.createGain(); sfxGain.gain.value = 0.8; sfxGain.connect(master);
+    bgmGain = ctx.createGain(); bgmGain.gain.value = BGM_VOLUME * songVol * settings.bgmVol; bgmGain.connect(bgmLimit);
+    sfxGain = ctx.createGain(); sfxGain.gain.value = SFX_VOLUME * settings.sfxVol; sfxGain.connect(master);
     // カードパックの音の出口：音割れを防ぐ圧縮 → 出口。残響（約1.4秒の響き）を少し混ぜる
     const fxComp = ctx.createDynamicsCompressor(); fxComp.threshold.value = -14; fxComp.ratio.value = 4; fxComp.connect(ctx.destination);
     const fxMaster = ctx.createGain(); fxMaster.gain.value = 0.68; fxMaster.connect(fxComp);
@@ -393,11 +395,15 @@ export function createSound() {
         song = bgmCache[url].song || null;
         bgmBuffer = bgmCache[url].buffer || null;
         if (!ensure()) return;
-        bgmGain.gain.value = BGM_VOLUME * vol;
+        songVol = vol;
+        bgmGain.gain.value = BGM_VOLUME * songVol * settings.bgmVol;
         if (ctx.state === 'running') startBgm();
       } catch (e) { console.warn('BGMを読み込めませんでした', e); }
     },
     setBgm(on) { settings.bgm = on; save(); if (on) { unlock(); } else stopBgm(); },
-    setSfx(on) { settings.sfx = on; save(); }
+    setSfx(on) { settings.sfx = on; save(); },
+    // 音量（0〜1）
+    setBgmVol(v) { settings.bgmVol = v; save(); if (bgmGain) bgmGain.gain.value = BGM_VOLUME * songVol * v; },
+    setSfxVol(v) { settings.sfxVol = v; save(); if (sfxGain) sfxGain.gain.value = SFX_VOLUME * v; }
   };
 }
